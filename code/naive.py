@@ -13,8 +13,6 @@ def run(G, s, b, t):
 
     # debugging 1
     # print(s_core_num)
-    # nx.draw(current_s_core, with_labels=True)
-    # plt.show()
     # print(coreness)
     
     while sum < b:
@@ -59,7 +57,7 @@ def run(G, s, b, t):
                 followers = functions.FindFollowers(e, delta_e, G, s, coreness)
                 FR = len(followers) / delta_e  # follower rate
 
-                ##### Not completed yet. Have to compare with the original result #####
+                # for debugging
 
                 # print(len(followers), end = " ")
 
@@ -71,8 +69,6 @@ def run(G, s, b, t):
                 # print("edge : ", e, " edge weight: ", delta_e)
                 # print(len(followers))
                 # print(follower_num)
-
-                ##### Not completed yet. Have to compare with the original result #####
                 
                 # renew the maximum value
                 if FR > max_FR:

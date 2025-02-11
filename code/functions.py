@@ -70,28 +70,29 @@ def FindFollowers(e, delta_e, G, s, coreness):
 
     # Initialize priority queue
     PQ = []
+    index_PQ = 0
     for node in e:
         if not G.nodes[node]['label']:
-            heapq.heappush(PQ, (coreness[node], node))
+            heapq.heappush(PQ, (coreness[node], index_PQ, node))
+            index_PQ += 1
 
     sigma_plus = {}
     while PQ:
-        _, x = heapq.heappop(PQ)
+        _, _, x = heapq.heappop(PQ)
 
         # σ⁺(x)
         sigma_plus[x] = sum(
             G[x][neighbor]['weight']
             for neighbor in G.neighbors(x)
-            if G.nodes[neighbor]['label'] or coreness[neighbor] >= coreness[x] or neighbor in F
+            if G.nodes[neighbor]['label'] or coreness[neighbor] > coreness[x] or neighbor in F or neighbor in [element[2] for element in PQ]
         )
 
         # for debugging
         # sigma_plus[x] = 0
         # for neighbor in G.neighbors(x):
-        #     # if neighbor in coreness:
-        #     #     # print(neighbor, x)
-        #     #     # print(coreness[neighbor], coreness[x])
-        #     if G.nodes[neighbor]['label'] or coreness[neighbor] >= coreness[x] or neighbor in F:
+        #     if G.nodes[neighbor]['label'] or coreness[neighbor] > coreness[x] or neighbor in F or neighbor in [element[2] for element in PQ]:
+        #         # if e == (11, 12):
+        #         #     print(neighbor)
         #         sigma_plus[x] += G[x][neighbor]['weight']
         # print(x, sigma_plus[x])
 
@@ -100,7 +101,8 @@ def FindFollowers(e, delta_e, G, s, coreness):
             F.add(x)
             for y in G.neighbors(x):
                 if not G.nodes[y]['label'] and y not in F and coreness[y] > coreness[x]:
-                    heapq.heappush(PQ, (coreness[y], y))
+                    heapq.heappush(PQ, (coreness[y], index_PQ, y))
+                    index_PQ += 1
 
         # σ⁺(x) < s
         else:
@@ -113,7 +115,7 @@ def FindFollowers(e, delta_e, G, s, coreness):
 
                 for z in G.neighbors(y):
                     if z in F:
-                        # update σ⁺(z)
+                        # # update σ⁺(z)
                         sigma_plus[z] -= G[y][z]['weight']
 
                         if sigma_plus[z] < s:

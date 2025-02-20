@@ -122,3 +122,23 @@ def FindFollowers(e, delta_e, G, s, coreness):
                             Q.append(z)
 
     return F
+
+
+def Upperbound(G, u, coreness):
+    Q = deque()
+    visited = [False] * (len(G.nodes) + 1)
+
+    count = 1
+    Q.append(u)
+    visited[u] = True
+
+    while Q:
+        v = Q.popleft()
+        for w in G.neighbors(v):
+            if not G.nodes[w]['label'] and coreness[v] < coreness[w]:
+                if not visited[w]:
+                    count += 1
+                    Q.append(w)
+                    visited[w] = True
+
+    return count

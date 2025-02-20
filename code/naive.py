@@ -5,11 +5,16 @@ from itertools import combinations
 
 def run(G, s, b, t):
 
-    # G_prime = G.copy()
+    G_prime = G.copy()
     A = set()  # the set of (increased edge, delta) pair
     
-    s_core_num, coreness = functions.calculate_s_core(G, s)  # Calculate s-core and coreness
+    s_core_num, coreness = functions.calculate_s_core(G_prime, s)  # Calculate s-core and coreness
     sum = 0  # the budget used
+
+    # debugging for Upperbound
+    # for i in G_prime.nodes:
+    #     if not G_prime.nodes[i]['label']:
+    #         print(i, functions.Upperbound(G_prime, i, coreness))
 
     # debugging 1
     # print(s_core_num)
@@ -20,12 +25,12 @@ def run(G, s, b, t):
         candidate_edges = []
 
         A_keys = set(edge for edge, _ in A)
-        for u, v in combinations(G.nodes, 2):
+        for u, v in combinations(G_prime.nodes, 2):
             # edges already in A
             if (u, v) in A_keys or (v, u) in A_keys:
                 continue
             # edges connecting two nodes both in s-core
-            if G.nodes[u]['label'] and G.nodes[v]['label']:
+            if G_prime.nodes[u]['label'] and G_prime.nodes[v]['label']:
                 continue
             candidate_edges.append((u, v))
         
@@ -40,28 +45,28 @@ def run(G, s, b, t):
         # Search every candidate edges
         for e in candidate_edges:
             # compute delta (How much you need increasing edge weight)
-            delta_e = functions.computeDelta(G, s, e, t, coreness)
+            delta_e = functions.computeDelta(G_prime, s, e, t, coreness)
             
             u, v = e
             if delta_e > 0 and sum + delta_e <= b:
 
                 # assuming the case of edge anchored
-                if G.has_edge(u, v):
+                if G_prime.has_edge(u, v):
                     edge_added = False
-                    G[u][v]['weight'] += delta_e
+                    G_prime[u][v]['weight'] += delta_e
                 else:
                     edge_added = True
-                    G.add_edge(u, v, weight=delta_e)
+                    G_prime.add_edge(u, v, weight=delta_e)
                 
                 # calculate the follower in that case
-                followers = functions.FindFollowers(e, delta_e, G, s, coreness)
+                followers = functions.FindFollowers(e, delta_e, G_prime, s, coreness)
                 FR = len(followers) / delta_e  # follower rate
 
                 # for debugging
 
                 # print(len(followers), end = " ")
 
-                # new_s_core_num, _ = functions.calculate_s_core(G, s)
+                # new_s_core_num, _ = functions.calculate_s_core(G_prime, s)
                 # follower_num = new_s_core_num - s_core_num
                 # FR = follower_num / delta_e
                 # print(follower_num, end = " ")
@@ -78,9 +83,9 @@ def run(G, s, b, t):
                 
                 # roll back the assumtion
                 if edge_added:
-                    G.remove_edge(u, v)
+                    G_prime.remove_edge(u, v)
                 else:
-                    G[u][v]['weight'] -= delta_e
+                    G_prime[u][v]['weight'] -= delta_e
 
         # debugging 3
         # print()
@@ -92,17 +97,17 @@ def run(G, s, b, t):
             u, v = best_edge
 
             # add edge weight
-            if G.has_edge(u, v):
-                G[u][v]['weight'] += best_delta
+            if G_prime.has_edge(u, v):
+                G_prime[u][v]['weight'] += best_delta
             else:
-                G.add_edge(u, v, weight=best_delta)
+                G_prime.add_edge(u, v, weight=best_delta)
 
             # add budget
             sum += best_delta
             # add answer
             A.add((best_edge, best_delta))
             # calculate s-core again
-            s_core_num, coreness = functions.calculate_s_core(G, s)
+            s_core_num, coreness = functions.calculate_s_core(G_prime, s)
             
             # debugging 4
             # print(s_core_num)

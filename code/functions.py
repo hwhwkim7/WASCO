@@ -68,6 +68,15 @@ def computeDelta(G, s, e, t, coreness):
 def FindFollowers(e, delta_e, G, s, coreness):
     F = set()
 
+    # assuming the case of edge anchored
+    u, v = e
+    if G.has_edge(u, v):
+        edge_added = False
+        G[u][v]['weight'] += delta_e
+    else:
+        edge_added = True
+        G.add_edge(u, v, weight=delta_e)
+
     # Initialize priority queue
     PQ = []
     index_PQ = 0
@@ -121,6 +130,12 @@ def FindFollowers(e, delta_e, G, s, coreness):
                         if sigma_plus[z] < s:
                             Q.append(z)
 
+    # roll back the assumtion
+    if edge_added:
+        G.remove_edge(u, v)
+    else:
+        G[u][v]['weight'] -= delta_e
+
     return F
 
 
@@ -142,3 +157,8 @@ def Upperbound(G, u, coreness):
                     visited[w] = True
 
     return count
+
+def U(u, upperbound):
+    return upperbound[u]
+def U(u, v, upperbound):
+    return upperbound[u] + upperbound[v]

@@ -47,18 +47,8 @@ def run(G, s, b, t):
             # compute delta (How much you need increasing edge weight)
             delta_e = functions.computeDelta(G_prime, s, e, t, coreness)
             
-            u, v = e
             if delta_e > 0 and sum + delta_e <= b:
-
-                # assuming the case of edge anchored
-                if G_prime.has_edge(u, v):
-                    edge_added = False
-                    G_prime[u][v]['weight'] += delta_e
-                else:
-                    edge_added = True
-                    G_prime.add_edge(u, v, weight=delta_e)
-                
-                # calculate the follower in that case
+                # calculate the follower in certain case
                 followers = functions.FindFollowers(e, delta_e, G_prime, s, coreness)
                 FR = len(followers) / delta_e  # follower rate
 
@@ -80,12 +70,6 @@ def run(G, s, b, t):
                     best_edge = e
                     best_delta = delta_e
                     max_FR = FR
-                
-                # roll back the assumtion
-                if edge_added:
-                    G_prime.remove_edge(u, v)
-                else:
-                    G_prime[u][v]['weight'] -= delta_e
 
         # debugging 3
         # print()

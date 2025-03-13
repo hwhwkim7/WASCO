@@ -139,7 +139,7 @@ def FindFollowers(e, delta_e, G, s, coreness):
     return F
 
 
-def Upperbound(G, u, coreness):
+def Upperbound(G, u, coreness, s):
     Q = deque()
     visited = [False] * (len(G.nodes) + 1)
 
@@ -156,7 +156,7 @@ def Upperbound(G, u, coreness):
                     Q.append(w)
                     visited[w] = True
 
-    return count
+    return count / (s - coreness[u][0])
 
 def U(u, upperbound):
     return upperbound[u]

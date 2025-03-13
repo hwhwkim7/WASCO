@@ -9,14 +9,14 @@ def run(G, s, b, t):
     
     s_core_num, coreness = functions.calculate_s_core(G_prime, s)  # Calculate s-core and coreness
     sum = 0  # the budget used
-
-    # Compute upperbounds
-    upperbound = [-1] * (len(G_prime.nodes) + 1)
-    for u in G_prime.nodes:
-        if not G_prime.nodes[u]['label']:
-            upperbound[u] = functions.Upperbound(G_prime, u, coreness)
     
     while sum < b:
+        # Compute upperbounds
+        upperbound = [-1] * (len(G_prime.nodes) + 1)
+        for u in G_prime.nodes:
+            if not G_prime.nodes[u]['label']:
+                upperbound[u] = functions.Upperbound(G_prime, u, coreness, s)
+
         # Filter candidate_edges
         candidate_nodes = [u for u in G_prime.nodes if not G_prime.nodes[u]['label']]
         candidate_nodes.sort(key = lambda x : -upperbound[x])
@@ -25,21 +25,17 @@ def run(G, s, b, t):
         F = set()
         best_edge = None; best_delta = 0  # edge and delta with maximal FR
         most_FR = 0  # maximal follower rate
-
-        for u in candidate_nodes:
-            if most_FR > 2 * functions.U(u, u, upperbound):
+        
+        c = len(candidate_nodes)
+        for i in range(c):
+            u = candidate_nodes[i]
+            if most_FR > functions.U(u, u, upperbound):
                 break
-            print(u)
-            u_followers = list(functions.FindFollowers((u, u), 1e9, G_prime, s, coreness))
-            u_followers.sort(key = lambda x: -upperbound[x])
-            print(u_followers)
-            for v in u_followers:
+            for j in range(i+1, c):
+                v = candidate_nodes[j]
                 if most_FR >= functions.U(u, v, upperbound):
                     break
-                if u in F and v in F:
-                    continue
                 else:
-                    print(u, v)
                     e = (u, v)
                     delta_e = functions.computeDelta(G_prime, s, e, t, coreness)
 
@@ -54,8 +50,6 @@ def run(G, s, b, t):
                             best_delta = delta_e
                             most_FR = FR
                         
-                        for f in followers:
-                            F.add(f)
 
         # debugging 3
         print()

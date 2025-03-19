@@ -121,6 +121,14 @@ def FindFollowers(e, delta_e, G, s, coreness):
                 y = Q.popleft()
                 if y in F:
                     F.remove(y)
+                    if y == u or y == v:
+                        # Early termination
+                        if edge_added:
+                            G.remove_edge(u, v)
+                        else:
+                            G[u][v]['weight'] -= delta_e
+
+                        return {}
 
                 for z in G.neighbors(y):
                     if z in F:

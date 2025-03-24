@@ -29,12 +29,14 @@ def run(G, s, b, t):
         c = len(candidate_nodes)
         for i in range(c):
             u = candidate_nodes[i]
-            if most_FR > functions.U(u, u, upperbound):
+            if most_FR > functions.U_single(u, upperbound) * 2:
                 break
             for j in range(i+1, c):
                 v = candidate_nodes[j]
-                if most_FR >= functions.U(u, v, upperbound):
+                if most_FR >= functions.U_single(u, upperbound) + functions.U_single(v, upperbound):
                     break
+                if most_FR >= functions.U_double(u, v, upperbound, coreness, G_prime):
+                    continue
                 else:
                     e = (u, v)
                     delta_e = functions.computeDelta(G_prime, s, e, t, coreness)

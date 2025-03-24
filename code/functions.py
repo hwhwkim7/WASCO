@@ -166,7 +166,11 @@ def Upperbound(G, u, coreness, s):
 
     return count / (s - coreness[u][0])
 
-def U(u, upperbound):
+def U_single(u, upperbound):
     return upperbound[u]
-def U(u, v, upperbound):
-    return upperbound[u] + upperbound[v]
+
+def U_double(u, v, upperbound, coreness, G):
+    if (G.has_edge(u, v) and coreness[u] < coreness[v]) or u == v:
+        return upperbound[u]
+    else:
+        return upperbound[u] + upperbound[v]

@@ -72,9 +72,9 @@ def run(G, s, b, t):
                     max_FR = FR
 
         # debugging 3
-        # print()
-        # print(best_edge)
-        # print(best_delta)
+        print()
+        print(best_edge)
+        print(best_delta)
 
         # Update G_prime
         if best_edge is not None:

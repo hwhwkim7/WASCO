@@ -4,6 +4,7 @@ import time
 
 import naive
 import adv
+import adv_reuse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--s', type=int, default=10,
@@ -28,7 +29,14 @@ if args.algorithm == "naive":
     start_time = time.time()
     A = naive.run(G, args.s, args.b, args.t)
     end_time = time.time()
+    print(end_time - start_time)
 elif args.algorithm == "adv":
     start_time = time.time()
     A = adv.run(G, args.s, args.b, args.t)
     end_time = time.time()
+    print(end_time - start_time)
+elif args.algorithm == "adv_reuse":
+    start_time = time.time()
+    A = adv_reuse.run_reuse(G, args.s, args.b, args.t)
+    end_time = time.time()
+    print(end_time - start_time)

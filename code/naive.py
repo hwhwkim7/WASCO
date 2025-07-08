@@ -75,6 +75,7 @@ def run(G, s, b, t):
         print()
         print(best_edge)
         print(best_delta)
+        # print(max_FR)
 
         # Update G_prime
         if best_edge is not None:

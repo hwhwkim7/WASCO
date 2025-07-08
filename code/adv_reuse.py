@@ -21,16 +21,32 @@ def run_reuse(G, s, b, t):
         if not best: break
 
         (u,v), delta, FR = best
-        print(best)
 
-        if delta > b - sum:
-            print("ERROR : 예산 초과")
-            break
-            # if best is best_intra:
-            #     intra_best.pop(comp_of[u], None)
-            # else:
-            #     inter_best.pop(tuple(sorted((comp_of[u], comp_of[v]))), None)
-            # continue
+        budget_left = b - sum
+
+        if delta > budget_left:
+            if best == best_intra:
+                c = comp_of[u]
+                intra_best.pop(c, None)
+
+                # "남은 예산"으로 다시 최고 edge 계산
+                edge2, d2, fr2 = find_intra_best(G_prime, nodes_in[c], upperbound, coreness, s, t, budget_left)
+                if edge2 is not None:
+                    intra_best[c] = (edge2, d2, fr2)
+
+            else:
+                c1, c2 = comp_of[u], comp_of[v]
+                key = tuple(sorted((c1, c2)))
+                inter_best.pop(key, None)
+
+                # 두 CC 사이에서 다시 최고 edge 계산
+                edge2, d2, fr2 = find_inter_best(G_prime, nodes_in[c],nodes_in[c2], upperbound, coreness, s, t, budget_left)
+                if edge2 is not None:
+                    inter_best[key] = (edge2, d2, fr2)
+
+            continue 
+    
+        # print(best)
 
         # 2. anchor 적용
         if G_prime.has_edge(u,v):
@@ -81,12 +97,12 @@ def run_reuse(G, s, b, t):
             nodes_in.pop(c1); nodes_in.pop(c2)
 
             # 새 intra / inter
-            edge, delta2, FR2 = find_intra_best(G_prime, new_nodes, coreness, s, t, b-sum)
+            edge, delta2, FR2 = find_intra_best(G_prime, new_nodes, coreness, s, t, b-sum, upperbound)
             if edge: intra_best[new_c] = (edge, delta2, FR2)
 
             for z in nodes_in:
                 if z == new_c: continue
-                edge2, delta3, FR3 = find_inter_best(G_prime, nodes_in[new_c], nodes_in[z], coreness, s, t, b-sum)
+                edge2, delta3, FR3 = find_inter_best(G_prime, nodes_in[new_c], nodes_in[z], coreness, s, t, b-sum, upperbound)
                 if edge2:
                     inter_best[tuple(sorted((new_c,z)))] = (edge2, delta3, FR3)
 

@@ -11,6 +11,8 @@ def run(G, s, b, t):
     sum = 0  # the budget used
     
     # non-s-core set 을 만든다! TODO
+    non_s_core = [n for n, d in G_prime.nodes(data=True) if not d['label']]
+
     while sum < b:
         # Compute upperbounds
         upperbound = [-1] * (len(G_prime.nodes) + 1)
@@ -20,7 +22,7 @@ def run(G, s, b, t):
 
         # Filter candidate_edges
         # G_prime 을 또 돌지 말것
-        candidate_nodes = [u for u in G_prime.nodes if not G_prime.nodes[u]['label']]
+        candidate_nodes = [u for u in non_s_core if not G_prime.nodes[u]['label']]
         candidate_nodes.sort(key = lambda x : -upperbound[x])
         
         # initial setting

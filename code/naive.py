@@ -22,18 +22,36 @@ def run(G, s, b, t):
     
     while sum < b:
         # Filter candidate_edges
+        # candidate_edges = []
+
+        # A_keys = set(edge for edge, _ in A)
+        # # 바꾸기 (intra) combination X
+        # for u, v in combinations(G_prime.nodes, 2):
+        #     # edges already in A - 필요없음
+        #     if (u, v) in A_keys or (v, u) in A_keys:
+        #         continue
+        #     # edges connecting two nodes both in s-core
+        #     if G_prime.nodes[u]['label'] and G_prime.nodes[v]['label']:
+        #         continue
+        #     candidate_edges.append((u, v))
+        
+        non_s_core = [n for n, d in G_prime.nodes(data=True) if not d['label']]
+        s_core  = [n for n, d in G_prime.nodes(data=True) if d['label']]
+
         candidate_edges = []
 
-        A_keys = set(edge for edge, _ in A)
-        # 바꾸기 (intra) combination X
-        for u, v in combinations(G_prime.nodes, 2):
-            # edges already in A - 필요없음
-            if (u, v) in A_keys or (v, u) in A_keys:
-                continue
-            # edges connecting two nodes both in s-core
-            if G_prime.nodes[u]['label'] and G_prime.nodes[v]['label']:
-                continue
-            candidate_edges.append((u, v))
+        # Intra non-core
+        non_len = len(non_s_core)
+        for i in range(non_len):
+            u = non_s_core[i]
+            for j in range(i+1, non_len):
+                v = non_s_core[j]
+                candidate_edges.append((u, v))
+
+        # core <-> non-core
+        for u in non_s_core:
+            for v in s_core:
+                candidate_edges.append((u, v))
         
         # debugging 2
         # print(candidate_edges)

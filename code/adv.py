@@ -10,6 +10,7 @@ def run(G, s, b, t):
     s_core_num, coreness = functions.calculate_s_core(G_prime, s)  # Calculate s-core and coreness
     sum = 0  # the budget used
     
+    # non-s-core set 을 만든다! TODO
     while sum < b:
         # Compute upperbounds
         upperbound = [-1] * (len(G_prime.nodes) + 1)
@@ -18,6 +19,7 @@ def run(G, s, b, t):
                 upperbound[u] = functions.Upperbound(G_prime, u, coreness, s)
 
         # Filter candidate_edges
+        # G_prime 을 또 돌지 말것
         candidate_nodes = [u for u in G_prime.nodes if not G_prime.nodes[u]['label']]
         candidate_nodes.sort(key = lambda x : -upperbound[x])
         

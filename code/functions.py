@@ -108,11 +108,11 @@ def calculate_s_core_(G, s):
 def computeDelta(G, s, e, t, coreness):
     u, v = e
     # label 로
-    if u in coreness:
+    if not G.nodes[u]['label']:
         c_u = coreness[u][0]
     else:
         c_u = s
-    if v in coreness:
+    if not G.nodes[v]['label']:
         c_v = coreness[v][0]
     else:
         c_v = s

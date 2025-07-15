@@ -8,7 +8,8 @@ def run(G, s, b, t):
     G_prime = G.copy()
     A = set()  # the set of (increased edge, delta) pair
     
-    s_core_num, coreness = functions.calculate_s_core(G_prime, s)  # Calculate s-core and coreness
+    coreness = {}
+    s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)  # Calculate s-core and coreness
     sum = 0  # the budget used
 
     # debugging for Upperbound
@@ -21,22 +22,15 @@ def run(G, s, b, t):
     # print(coreness)
     
     while sum < b:
-        # Filter candidate_edges
-        # candidate_edges = []
-
-        # A_keys = set(edge for edge, _ in A)
-        # # 바꾸기 (intra) combination X
-        # for u, v in combinations(G_prime.nodes, 2):
-        #     # edges already in A - 필요없음
-        #     if (u, v) in A_keys or (v, u) in A_keys:
-        #         continue
-        #     # edges connecting two nodes both in s-core
-        #     if G_prime.nodes[u]['label'] and G_prime.nodes[v]['label']:
-        #         continue
-        #     candidate_edges.append((u, v))
         
-        non_s_core = [n for n, d in G_prime.nodes(data=True) if not d['label']]
-        s_core  = [n for n, d in G_prime.nodes(data=True) if d['label']]
+        # Filter candidate edges
+        non_s_core = []
+        s_core = []
+        for n, d in G_prime.nodes(data=True):
+            if not d['label']:
+                non_s_core.append(n)
+            else:
+                s_core.append(n)
 
         candidate_edges = []
 
@@ -44,6 +38,7 @@ def run(G, s, b, t):
         non_len = len(non_s_core)
         for i in range(non_len):
             u = non_s_core[i]
+            # self edge 반영하게끔 i+1 -> i ---> s-core 랑 잇는 부분이 있어서 필요 없을듯
             for j in range(i+1, non_len):
                 v = non_s_core[j]
                 candidate_edges.append((u, v))
@@ -91,14 +86,16 @@ def run(G, s, b, t):
                     max_FR = FR
 
         # debugging 3
-        print()
-        print(best_edge)
-        print(best_delta)
+        # print()
+        # print(best_edge)
+        # print(best_delta)
         # print(max_FR)
 
         # Update G_prime
         if best_edge is not None:
             u, v = best_edge
+            if u == v:
+                v = s_core[0]
 
             # add edge weight
             if G_prime.has_edge(u, v):
@@ -109,14 +106,15 @@ def run(G, s, b, t):
             # add budget
             sum += best_delta
             # add answer
-            A.add((best_edge, best_delta))
+            A.add(((u, v), best_delta))
             # calculate s-core again
-            s_core_num, coreness = functions.calculate_s_core(G_prime, s)
+            coreness = {}
+            s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)
             
             # debugging 4
             # print(s_core_num)
         else:
             # print("no more")
             break
-
+    print(s_core_num)
     return A

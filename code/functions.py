@@ -2,12 +2,11 @@ import heapq
 from heapdict import heapdict
 from collections import deque
 
-def calculate_s_core(G, s):
-    weight_sum = {node: sum(G[u][v]['weight'] for u, v in G.edges(node)) for node in G.nodes}
-    for node in G.nodes:
+def calculate_s_core(G, nodes, s, coreness):
+    weight_sum = {node: sum(G[u][v]['weight'] for u, v in G.edges(node)) for node in nodes}
+    for node in nodes:
         G.nodes[node]['label'] = True
-    s_core_num = len(G.nodes)
-    coreness = {}
+    s_core_num = len(nodes)
 
     # make heap with the key : weight sum
     heap = [(weight, node) for node, weight in weight_sum.items()]
@@ -23,12 +22,11 @@ def calculate_s_core(G, s):
         
         # this loop for l(u)
         layer = 0
-        while heap[0][0] <= current_core:
+        while heap and heap[0][0] <= current_core:
             layer += 1
-            # temp 를 dictionary 로 함으로써 중복 제거
             temp = {}
             # The node deleted in this loop has coreness "(current_core, layer)"
-            while heap[0][0] <= current_core:
+            while heap and heap[0][0] <= current_core:
                 weight, node = heapq.heappop(heap)
 
                 if not G.nodes[node]['label']:
@@ -38,6 +36,10 @@ def calculate_s_core(G, s):
 
                 for neighbor in G.neighbors(node):
                     if not G.nodes[neighbor]['label']:
+                        continue
+                    # reuse 에서 s-core 에 있는 노드들을 넣지 않기 때문에 기존 s-core 가 저장되어 있지 않음
+                    # 즉 기존 s-core 로 향하는 neighbor 들을 차단해줘야 함. ->overhead?
+                    if neighbor not in nodes:
                         continue
                     weight_sum[neighbor] -= G[node][neighbor]['weight']
                     temp[neighbor] = weight_sum[neighbor]
@@ -51,7 +53,7 @@ def calculate_s_core(G, s):
 
     # debugging
     # print(coreness)
-    return s_core_num, coreness
+    return s_core_num
 
 def calculate_s_core_(G, s):
     weight_sum = {node: sum(G[u][v]['weight'] for u, v in G.edges(node)) for node in G.nodes}
@@ -107,7 +109,6 @@ def calculate_s_core_(G, s):
 # not considering T yet
 def computeDelta(G, s, e, t, coreness):
     u, v = e
-    # label 로
     if not G.nodes[u]['label']:
         c_u = coreness[u][0]
     else:
@@ -135,10 +136,14 @@ def FindFollowers(e, delta_e, G, s, coreness):
     # Initialize priority queue
     PQ = []
     index_PQ = 0
-    for node in e:
-        if not G.nodes[node]['label']:
-            heapq.heappush(PQ, (coreness[node], index_PQ, node))
-            index_PQ += 1
+    if u == v:
+        heapq.heappush(PQ, (coreness[u], index_PQ, u))
+        index_PQ += 1
+    else:
+        for node in e:
+            if not G.nodes[node]['label']:
+                heapq.heappush(PQ, (coreness[node], index_PQ, node))
+                index_PQ += 1
 
     sigma_plus = {}
     while PQ:
@@ -203,6 +208,9 @@ def FindFollowers(e, delta_e, G, s, coreness):
 
 
 def Upperbound(G, u, coreness, s):
+    if G.nodes[u]['label']:
+        return 0
+    
     Q = deque()
     visited = [False] * (len(G.nodes) + 1)
 

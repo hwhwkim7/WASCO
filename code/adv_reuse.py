@@ -7,14 +7,15 @@ def run_reuse(G, s, b, t):
     G_prime = G.copy()
     A = set() # the set of (increased edge, delta) pair
 
-    _, coreness = functions.calculate_s_core(G_prime, s)
+    coreness = {}
+    s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)
     sum = 0 # the budget used
 
-    upperbound = [-1] * (len(G_prime.nodes) + 1)
-    comp_of, nodes_in, intra_best, inter_best = build_initial_caches(G_prime, s, t, b, coreness, upperbound)
+    upperbound = {}
+    comp_of, nodes_in, intra_best, inter_best, s_cand = build_initial_caches(G_prime, s, t, b, coreness, upperbound)
 
     while sum < b:
-        # 1. Cache 이용해서 max 값 찾기
+        # 1. Find best edge using Cache
         best_intra = max(intra_best.values(), key=lambda x:x[2], default=None)
         best_inter = max(inter_best.values(), key=lambda x:x[2], default=None)
         best = max([e for e in (best_intra,best_inter) if e], key=lambda x:x[2], default=None)
@@ -29,7 +30,7 @@ def run_reuse(G, s, b, t):
                 c = comp_of[u]
                 intra_best.pop(c, None)
 
-                # "남은 예산"으로 다시 최고 edge 계산
+                # Renew the connected component where the best edge came from using budget_left
                 edge2, d2, fr2 = find_intra_best(G_prime, nodes_in[c], upperbound, coreness, s, t, budget_left)
                 if edge2 is not None:
                     intra_best[c] = (edge2, d2, fr2)
@@ -39,16 +40,24 @@ def run_reuse(G, s, b, t):
                 key = tuple(sorted((c1, c2)))
                 inter_best.pop(key, None)
 
-                # 두 CC 사이에서 다시 최고 edge 계산
+                # Renew the intra cc where the best edge came from using budget_left
                 edge2, d2, fr2 = find_inter_best(G_prime, nodes_in[c],nodes_in[c2], upperbound, coreness, s, t, budget_left)
                 if edge2 is not None:
                     inter_best[key] = (edge2, d2, fr2)
 
             continue 
     
-        # print(best)
+         # debugging 3
+        # print()
+        # print(best[0])
+        # print(best[1])
+        # print(best[2])
 
-        # 2. anchor 적용
+        # 2. Apply anchor edge
+        # self edge 인지 고려해야 함
+        if u == v:
+            v = s_cand
+
         if G_prime.has_edge(u,v):
             G_prime[u][v]['weight'] += delta
         else:
@@ -56,55 +65,69 @@ def run_reuse(G, s, b, t):
         sum += delta
         A.add(((u,v), delta))
 
-        # coreness 업데이트 (전역 계산 or 지역 계산? 확인해봐야 함)
-        _, new_core = functions.calculate_s_core(G_prime, s)
-        changed_nodes = {x for x in G_prime.nodes if not G_prime.nodes[x]['label'] and new_core[x] != coreness[x]}
-        coreness = new_core
+        # coreness 업데이트 (전역 계산 or 지역 계산? 확인해봐야 함) - 지역으로 바꾸기
+        # s_core_num = functions.calculate_s_core(G_prime, s)
 
-        # ----- 3. 캐시 갱신 --------------------------------
-        # 3-A : intra vs inter 구분
+        # ----- 3. Renew Cache --------------------------------
+        # 3-A : intra vs inter
         if best == best_intra:
             # same CC
             c = comp_of[u]
-            affected = {c}
-            invalidate(affected, intra_best, inter_best)
+            # calculate_s_core 에 new_nodes 를 넣을지 고민
+            s_core_num = functions.calculate_s_core(G_prime, nodes_in[c], s, coreness)
 
-            # 재계산
-            edge, delta2, FR2 = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b-sum, upperbound)
-            if edge: intra_best[c] = (edge, delta2, FR2)
+            new_nodes = {v for v in nodes_in[c] if not G_prime.nodes[v]['label']}
 
-            for z in nodes_in:
-                if z == c: continue
-                edge2, delta3, FR3 = find_inter_best(G_prime, nodes_in[c], nodes_in[z], coreness, s, t, b-sum, upperbound)
-                if edge2:
-                    inter_best[tuple(sorted((c,z)))] = (edge2, delta3, FR3)
+            # CC 에 non-s-core 가 남아있는지 확인
+            if not new_nodes:
+                invalidate({c}, intra_best, inter_best)  # 캐시 엔트리 삭제
+                nodes_in.pop(c)
+            else:
+                nodes_in[c] = new_nodes
+                invalidate({c}, intra_best, inter_best)
+
+                # Recompute
+                edge, delta2, FR2 = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b-sum, upperbound)
+                if edge:
+                    intra_best[c] = (edge, delta2, FR2)
+
+                for z in nodes_in:
+                    if z == c: continue
+                    edge2, delta3, FR3 = find_inter_best(G_prime, nodes_in[c], nodes_in[z], coreness, s, t, b-sum, upperbound)
+                    if edge2:
+                        inter_best[tuple(sorted((c,z)))] = (edge2, delta3, FR3)
 
         else:
-            # inter : CC 병합
+            # inter : Union CC
             c1, c2 = comp_of[u], comp_of[v]
-            new_nodes = nodes_in[c1] | nodes_in[c2]
+            union_nodes = nodes_in[c1] | nodes_in[c2]
 
-            if changed_nodes:
-                new_nodes |= set(changed_nodes) # ? 꼭 필요한 작업인가?
+            # union_nodes or new_nodes 둘 중 머 넣을지 고민
+            s_core_num = functions.calculate_s_core(G_prime, union_nodes, s, coreness)
 
-            new_c = max(nodes_in)+1  # 새 id
-            nodes_in[new_c] = new_nodes
-            for x in new_nodes:
-                comp_of[x] = new_c
+            new_nodes = {x for x in union_nodes if not G_prime.nodes[x]['label']}
 
-            # old CC 삭제
+            # Delete old CC
             invalidate({c1,c2}, intra_best, inter_best)
             nodes_in.pop(c1); nodes_in.pop(c2)
 
-            # 새 intra / inter
-            edge, delta2, FR2 = find_intra_best(G_prime, new_nodes, coreness, s, t, b-sum, upperbound)
-            if edge: intra_best[new_c] = (edge, delta2, FR2)
+            # non-s-core 가 존재해야만 새롭게 만든다.
+            if new_nodes:
+                new_c = max(nodes_in)+1  # New id
+                nodes_in[new_c] = new_nodes
+                for x in new_nodes:
+                    comp_of[x] = new_c
 
-            for z in nodes_in:
-                if z == new_c: continue
-                edge2, delta3, FR3 = find_inter_best(G_prime, nodes_in[new_c], nodes_in[z], coreness, s, t, b-sum, upperbound)
-                if edge2:
-                    inter_best[tuple(sorted((new_c,z)))] = (edge2, delta3, FR3)
+
+                # New intra / inter
+                edge, delta2, FR2 = find_intra_best(G_prime, new_nodes, coreness, s, t, b-sum, upperbound)
+                if edge: intra_best[new_c] = (edge, delta2, FR2)
+
+                for z in nodes_in:
+                    if z == new_c: continue
+                    edge2, delta3, FR3 = find_inter_best(G_prime, nodes_in[new_c], nodes_in[z], coreness, s, t, b-sum, upperbound)
+                    if edge2:
+                        inter_best[tuple(sorted((new_c,z)))] = (edge2, delta3, FR3)
 
     return A
 
@@ -112,12 +135,25 @@ def run_reuse(G, s, b, t):
 def build_initial_caches(G, s, t, B_left, coreness, upperbound):
     comp_of, nodes_in = {}, {}
     intra_best, inter_best = {}, {}
+    s_cand = None
 
-    # CC 분해
+    # Decompose CC
     for cid, nodes in enumerate(nx.connected_components(G)):
-        nodes = set(nodes)
-        nodes_in[cid] = nodes
+        # CC 저장은 non-s-core 만
+        non_core = set()
         for v in nodes:
+            if not G.nodes[v]['label']:
+                non_core.add(v)
+            else:
+                if s_cand is None:
+                    s_cand = v
+
+        # CC 가 다 s-core 라면 저장 X
+        if not non_core:
+            continue
+
+        nodes_in[cid] = non_core
+        for v in non_core:
             comp_of[v] = cid
 
     # intra
@@ -134,18 +170,18 @@ def build_initial_caches(G, s, t, B_left, coreness, upperbound):
         if edge:
             inter_best[tuple(sorted((cid1,cid2)))] = (edge, delta, FR)
 
-    return comp_of, nodes_in, intra_best, inter_best
+    return comp_of, nodes_in, intra_best, inter_best, s_cand
 
 
 def find_intra_best(G, nodes, coreness, s, t, budget_left, upperbound):
     
-    # upperbound 계산
-    for u in G.nodes:
+    # Compute upperbound for only cand
+    cand = []
+    for u in nodes:
         if not G.nodes[u]['label']:
             upperbound[u] = functions.Upperbound(G, u, coreness, s)
+            cand.append(u)
 
-    # Filter candidate edges
-    cand = [u for u in nodes if not G.nodes[u]['label']]
     cand.sort(key=lambda u: -upperbound[u])
 
     best_edge, best_delta, best_FR = None, 0, 0.0
@@ -158,7 +194,7 @@ def find_intra_best(G, nodes, coreness, s, t, budget_left, upperbound):
         if best_FR > functions.U_single(u, upperbound) * 2:
             break
 
-        for j in range(i + 1, c):
+        for j in range(i, c):
             v = cand[j]
 
             if best_FR >= functions.U_single(u, upperbound) + functions.U_single(v, upperbound):
@@ -175,11 +211,10 @@ def find_intra_best(G, nodes, coreness, s, t, budget_left, upperbound):
                 if FR > best_FR:
                     best_edge, best_delta, best_FR = e, delta_e, FR
 
-    return best_edge, best_delta, best_FR   # best_edge is None → “이 CC에선 적합 엣지 없음”
+    return best_edge, best_delta, best_FR   # best_edge is None → No appropriate edge in this CC
 
 
 def find_inter_best(G, nodesA, nodesB, coreness, s, t, budget_left, upperbound):
-
     # Filter candidate_edges
     candA = [u for u in nodesA if not G.nodes[u]['label']]
     candB = [v for v in nodesB if not G.nodes[v]['label']]
@@ -189,20 +224,13 @@ def find_inter_best(G, nodesA, nodesB, coreness, s, t, budget_left, upperbound):
 
     best_edge, best_delta, best_FR = None, 0, 0.0
 
-    # Upper-bound 배열을 한 번 미리 계산해 두면 U_single 재호출을 줄일 수 있음
-    U_A = {u: functions.U_single(u, upperbound) for u in candA}
-    U_B = {v: functions.U_single(v, upperbound) for v in candB}
-
     for i, u in enumerate(candA):
-        if best_FR > U_A[u] + max(U_B.values()):
+        if best_FR > functions.U_single(u, upperbound) + functions.U_single(candB[0], upperbound):
             break
 
         for v in candB:
-            # 다시 확인해봐야 함. 두 조건이 같은 거 같기도
-            if best_FR >= U_A[u] + U_B[v]:
+            if best_FR >= functions.U_single(u, upperbound) + functions.U_single(v, upperbound):
                 break
-            if best_FR >= functions.U_double(u, v, upperbound, coreness, G):
-                continue
 
             e = (u, v)
             delta_e = functions.computeDelta(G, s, e, t, coreness)

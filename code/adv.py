@@ -7,26 +7,39 @@ def run(G, s, b, t):
     G_prime = G.copy()
     A = set()  # the set of (increased edge, delta) pair
     
-    s_core_num, coreness = functions.calculate_s_core(G_prime, s)  # Calculate s-core and coreness
+    coreness = {}
+    s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)  # Calculate s-core and coreness
+    print(s_core_num)
     sum = 0  # the budget used
     
-    # non-s-core set 을 만든다! TODO
-    non_s_core = [n for n, d in G_prime.nodes(data=True) if not d['label']]
+    # non-s-core set - pruned set
+    non_s_core = []
+    s_cand = None
+    for n, d in G_prime.nodes(data=True):
+        if not d['label']:
+            non_s_core.append(n)
+        else:
+            if s_cand is None:
+                s_cand = n
+    
+    if s_cand is None:
+        print("No node in s-core. Change s value")
+        return
+
+    upperbound = {}
 
     while sum < b:
-        # Compute upperbounds
-        upperbound = [-1] * (len(G_prime.nodes) + 1)
-        for u in G_prime.nodes:
+        # Compute upperbound for only candidate nodes
+        candidate_nodes = []
+        for u in non_s_core:
             if not G_prime.nodes[u]['label']:
                 upperbound[u] = functions.Upperbound(G_prime, u, coreness, s)
+                candidate_nodes.append(u)
+        # print(len(upperbound))
 
-        # Filter candidate_edges
-        # G_prime 을 또 돌지 말것
-        candidate_nodes = [u for u in non_s_core if not G_prime.nodes[u]['label']]
         candidate_nodes.sort(key = lambda x : -upperbound[x])
         
         # initial setting
-        F = set()
         best_edge = None; best_delta = 0  # edge and delta with maximal FR
         most_FR = 0  # maximal follower rate
         
@@ -35,7 +48,7 @@ def run(G, s, b, t):
             u = candidate_nodes[i]
             if most_FR > functions.U_single(u, upperbound) * 2:
                 break
-            for j in range(i+1, c):
+            for j in range(i, c):
                 v = candidate_nodes[j]
                 if most_FR >= functions.U_single(u, upperbound) + functions.U_single(v, upperbound):
                     break
@@ -61,10 +74,13 @@ def run(G, s, b, t):
         # print()
         # print(best_edge)
         # print(best_delta)
+        # print(most_FR)
 
         # Update G_prime
         if best_edge is not None:
             u, v = best_edge
+            if u == v:
+                v = s_cand
 
             # add edge weight
             if G_prime.has_edge(u, v):
@@ -75,14 +91,17 @@ def run(G, s, b, t):
             # add budget
             sum += best_delta
             # add answer
-            A.add((best_edge, best_delta))
+
+            # 고치기 s_cand 로
+            A.add(((u, v), best_delta))
             # calculate s-core again
-            s_core_num, coreness = functions.calculate_s_core(G_prime, s)
+            coreness = {}
+            s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)
             
             # debugging 4
             # print(s_core_num)
         else:
             # print("no more")
             break
-
+    print(s_core_num)
     return A

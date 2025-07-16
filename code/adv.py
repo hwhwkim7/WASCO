@@ -103,5 +103,5 @@ def run(G, s, b, t):
         else:
             # print("no more")
             break
-    print(s_core_num)
+    # print(s_core_num)
     return A

@@ -6,8 +6,8 @@ import exp_func
 
 def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
     # Time
-    FT = 0
-    UT = 0
+    FT = 0.0
+    UT = 0.0
 
     G_prime = G.copy()
     A = set()  # the set of (increased edge, delta) pair
@@ -42,13 +42,11 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
             else:
                 best_edge, best_delta, most_FR = exp_func.iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, spent, FT)
         else:
-            # 1. Candidate 만드는 과정
-            candidate_edges = exp_func.make_candidate_edges(G_prime, G_prime.nodes, coreness, s, T2_upperbound, upperbound, UT)
-            
-            # 2. Candidate 에서 iteration 돌며 best edge 구하는 과정
             if T2_upperbound:
-                best_edge, best_delta, most_FR = exp_func.iteration_edges_upperbound(G_prime, candidate_edges, coreness, s, b, t, upperbound, spent, FT)
+                candidate_nodes = exp_func.make_candidate_nodes_v2(G_prime, G_prime.nodes, coreness, s, T2_upperbound, upperbound, UT)
+                best_edge, best_delta, most_FR = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
             else:
+                candidate_edges = exp_func.make_candidate_edges(G_prime, G_prime.nodes, coreness, s, T2_upperbound, upperbound, UT)
                 best_edge, best_delta, most_FR = exp_func.iteration_edges_no_upperbound(G_prime, candidate_edges, coreness, s, b, t, spent, FT)
                         
         # debugging 3
@@ -83,8 +81,8 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
         else:
             # print("no more")
             break
-    print(s_core_num)
-    return A, FT, UT
+    # print(s_core_num)
+    return A, FT, UT, G_prime
 
 
 def self_edge_pruning(G):

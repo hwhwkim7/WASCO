@@ -58,17 +58,28 @@ elif args.algorithm == "exp":
     
     if args.tactics[2] == 'T':
         start_time = time.time()
-        A, FT, UT = experiment_reuse.run(G, args.s, args.b, args.t, T1_self_edge, T2_upperbound)
+        A, FT, UT, G_prime = experiment_reuse.run(G, args.s, args.b, args.t, T1_self_edge, T2_upperbound)
         end_time = time.time()
         print(end_time - start_time)
-        print(A)
-        print(FT)
-        print(UT)
+        # print(A)
+        # print(FT)
+        # print(UT)
+        s_core_num = 0
+        for i in G_prime.nodes:
+            if G_prime.nodes[i]['label']:
+                s_core_num += 1
+        print(s_core_num)
+
     else:
         start_time = time.time()
-        A, FT, UT = experiment.run(G, args.s, args.b, args.t, T1_self_edge, T2_upperbound)
+        A, FT, UT, G_prime = experiment.run(G, args.s, args.b, args.t, T1_self_edge, T2_upperbound)
         end_time = time.time()
         print(end_time - start_time)
-        print(A)
-        print(FT)
-        print(UT)
+        # print(A)
+        # print(FT)
+        # print(UT)
+        s_core_num = 0
+        for i in G_prime.nodes:
+            if G_prime.nodes[i]['label']:
+                s_core_num += 1
+        print(s_core_num)

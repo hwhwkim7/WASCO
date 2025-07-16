@@ -231,13 +231,10 @@ def U_single(u, upperbound):
     return upperbound[u]
 
 def U_double(u, v, upperbound, coreness, G, s):
-    # 이걸 넣어도 될까. self_edge X upperbound O 인 경우에 s-core 의 coreness 도 고려하게 된다
     if G.nodes[v]['label']:
-        cv = (s, 0)
-    else:
-        cv = coreness[v]
+        return upperbound[u]
     
-    if (G.has_edge(u, v) and coreness[u] < cv) or u == v:
+    if (G.has_edge(u, v) and coreness[u] < coreness[v]) or u == v:
         return upperbound[u]
     else:
         return upperbound[u] + upperbound[v]

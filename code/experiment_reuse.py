@@ -1,14 +1,15 @@
 import networkx as nx
 from itertools import combinations
 import time
+import sys
 
 import functions
 import exp_func
 
 def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
     # Time
-    FT = 0
-    UT = 0
+    FT = 0.0
+    UT = 0.0
 
     G_prime = G.copy()
     A = set() # the set of (increased edge, delta) pair
@@ -138,7 +139,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
                     if edge2:
                         inter_best[tuple(sorted((new_c,z)))] = (edge2, delta3, FR3)
 
-    return A, FT, UT
+    return A, FT, UT, G_prime
 
 
 def build_initial_caches(G, s, t, b, spent, coreness, upperbound, T1_self_edge, T2_upperbound, UT, FT):
@@ -169,6 +170,13 @@ def build_initial_caches(G, s, t, b, spent, coreness, upperbound, T1_self_edge, 
             nodes_in[cid] = non_core
             for v in non_core:
                 comp_of[v] = cid
+
+
+        # s_cand 가 없으면 죽음 TODO                
+        if s_cand is None:
+            print("No node in s-core. Change s value")
+            sys.exit(1)
+
     else:   # 모든 노드를 저장한다.
         # Decompose CC
         for cid, nodes in enumerate(nx.connected_components(G)):
@@ -204,11 +212,11 @@ def find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge
             best_edge, best_delta, most_FR = exp_func.iteration_nodes_no_upperbound(G, candidate_nodes, coreness, s, b, t, spent, FT)
     
     else:
-        candidate_edges = exp_func.make_candidate_edges(G, nodes, coreness, s, T2_upperbound, upperbound, UT)
-        
         if T2_upperbound:
-            best_edge, best_delta, most_FR = exp_func.iteration_edges_upperbound(G, candidate_edges, coreness, s, b, t, upperbound, spent, FT)
+            candidate_nodes = exp_func.make_candidate_nodes_v2(G, G.nodes, coreness, s, T2_upperbound, upperbound, UT)
+            best_edge, best_delta, most_FR = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
         else:
+            candidate_edges = exp_func.make_candidate_edges(G, G.nodes, coreness, s, T2_upperbound, upperbound, UT)
             best_edge, best_delta, most_FR = exp_func.iteration_edges_no_upperbound(G, candidate_edges, coreness, s, b, t, spent, FT)
     
     return best_edge, best_delta, most_FR   # best_edge is None → No appropriate edge in this CC
@@ -220,35 +228,47 @@ def find_inter_best(G, nodesA, nodesB, coreness, s, t, b, spent, upperbound, T1_
         candA = [u for u in nodesA if not G.nodes[u]['label']]
         candB = [v for v in nodesB if not G.nodes[v]['label']]
     else:
-        candA = nodesA
-        candB = nodesB
+        candA = list(nodesA)
+        candB = list(nodesB)
 
     if T2_upperbound:
         candA.sort(key=lambda u: -upperbound[u])
         candB.sort(key=lambda v: -upperbound[v])
 
-    best_edge, best_delta, most_FR = None, 0, 0.0
+    # FFT 를 candidate_edges 로 만들어서 진행. TODO
+    if not T1_self_edge and not T2_upperbound:
 
-    for i, u in enumerate(candA):
-        if T2_upperbound and most_FR > functions.U_single(u, upperbound) + functions.U_single(candB[0], upperbound):
-            break
+        candidate_edges = []
+        for u in candA:
+            for v in candB:
+                if not (G.nodes[u]['label'] and G.nodes[v]['label']):
+                    candidate_edges.append((u,v))
+        
+        best_edge, best_delta, most_FR = exp_func.iteration_edges_no_upperbound(G, candidate_edges, coreness, s, b, t, spent, FT)
+    else:
+        
+        best_edge, best_delta, most_FR = None, 0, 0.0
 
-        for v in candB:
-            if T2_upperbound and most_FR >= functions.U_single(u, upperbound) + functions.U_single(v, upperbound):
+        for i, u in enumerate(candA):
+            if T2_upperbound and most_FR > functions.U_single(u, upperbound) + functions.U_single(candB[0], upperbound):
                 break
 
-            e = (u, v)
-            delta_e = functions.computeDelta(G, s, e, t, coreness)
-            
-            if delta_e > 0 and delta_e <= b - spent:
-                temp_start = time.time()
-                followers = functions.FindFollowers(e, delta_e, G, s, coreness)
-                temp_end = time.time()
-                FT += temp_end - temp_start
+            for v in candB:
+                if T2_upperbound and most_FR >= functions.U_single(u, upperbound) + functions.U_single(v, upperbound):
+                    break
 
-                FR = len(followers) / delta_e
-                if FR > most_FR:
-                    best_edge, best_delta, most_FR = e, delta_e, FR
+                e = (u, v)
+                delta_e = functions.computeDelta(G, s, e, t, coreness)
+                
+                if delta_e > 0 and delta_e <= b - spent:
+                    temp_start = time.time()
+                    followers = functions.FindFollowers(e, delta_e, G, s, coreness)
+                    temp_end = time.time()
+                    FT += temp_end - temp_start
+
+                    FR = len(followers) / delta_e
+                    if FR > most_FR:
+                        best_edge, best_delta, most_FR = e, delta_e, FR
 
     return best_edge, best_delta, most_FR
 

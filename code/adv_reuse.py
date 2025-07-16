@@ -14,7 +14,7 @@ def run_reuse(G, s, b, t):
 
     upperbound = {}
     comp_of, nodes_in, intra_best, inter_best, s_cand = build_initial_caches(G_prime, s, t, b, coreness, upperbound)
-    print(len(nodes_in))
+    # print(len(nodes_in))
 
     while sum < b:
         # 1. Find best edge using Cache

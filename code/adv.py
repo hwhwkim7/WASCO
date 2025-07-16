@@ -52,7 +52,7 @@ def run(G, s, b, t):
                 v = candidate_nodes[j]
                 if most_FR >= functions.U_single(u, upperbound) + functions.U_single(v, upperbound):
                     break
-                if most_FR >= functions.U_double(u, v, upperbound, coreness, G_prime):
+                if most_FR >= functions.U_double(u, v, upperbound, coreness, G_prime, s):
                     continue
                 else:
                     e = (u, v)

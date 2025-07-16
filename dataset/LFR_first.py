@@ -46,16 +46,17 @@ for u, v, data in G.edges(data=True):
     data['weight'] = int(w)
 
 # 6. edges.dat 쓰기: "u v weight"
-edges_file = f"test/LFR_edges.dat"
+edges_file = f"test/LFR_first.dat"
 labels_file = f"test/LFR_labels.dat"
 
 with open(edges_file, "w") as f:
     for u, v, data in G.edges(data=True):
         f.write(f"{u} {v} {data['weight']}\n")
 
-# 7. labels.dat 쓰기: "u community_id"
-with open(labels_file, "w") as f:
-    for node in G.nodes():
-        f.write(f"{node} {comm_id[node]}\n")
+# # 7. labels.dat 쓰기: "u community_id"
+# with open(labels_file, "w") as f:
+#     for node in G.nodes():
+# #         f.write(f"{node} {comm_id[node]}\n")
 
-print("→ edges.dat 와 labels.dat 저장 완료")
+# print("→ edges.dat 와 labels.dat 저장 완료")
+print("저장완료")

@@ -1,12 +1,13 @@
-import functions
 import networkx as nx
 from itertools import combinations
 import sys
+import functions
+import exp_func
 
-def run(G, s, b, t):
-    # Tactics
-    T1_self_edge = True
-    T2_upperbound = True
+def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
+    # Time
+    FT = 0
+    UT = 0
 
     G_prime = G.copy()
     A = set()  # the set of (increased edge, delta) pair
@@ -14,170 +15,42 @@ def run(G, s, b, t):
     # calculate_s_core 에는 coreness 재선언이 없기 때문에 선언 후 시작
     coreness = {}
     s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)  # Calculate s-core and coreness
-    sum = 0  # the budget used
+    print(s_core_num)
+    spent = 0  # the budget used
     
 
     # self_edge theorem 을 사용하면 s-core 는 후보에서 영원히 제거된다.
     if T1_self_edge:
         non_s_core, s_cand = self_edge_pruning(G_prime) # pruned set
 
-    if T2_upperbound:
-        upperbound = {}
+    # 딕셔너리 선언만 해두는 건 크게 잡아먹지 않을듯?
+    upperbound = {}
 
-    while sum < b:
+    while spent < b:
         '''
+        self_edge 전략과 upperbound 전략에 따라 아래 두 과정을 다르게 진행한다.
         1. Candidate 만드는 과정
-        - self_edge O
-            s-core 를 아예 다 뺀 candiate_nodes 집합을 만든다.
-        - self_edge X
-            non-s-core 와 s-core 를 잘 배합해서 candidate_edges 집합을 만든다.
+        2. Candidate 에서 iteration 돌며 best edge 구하는 과정
         '''
         if T1_self_edge:
-            # 함수로 바꾸자.
-            ############# 1. Candidate 만드는 과정 ##################
-
-            # candidate_nodes 집합
-            candidate_nodes = []
-            for u in non_s_core:
-                if not G_prime.nodes[u]['label']:
-                    candidate_nodes.append(u)
-                    # upperbound 계산
-                    if T2_upperbound:
-                        upperbound[u] = functions.Upperbound(G_prime, u, coreness, s)
+            # 1. Candidate 만드는 과정
+            candidate_nodes = exp_func.make_candidate_nodes(G_prime, non_s_core, coreness, s, T2_upperbound, upperbound, UT)
             
-            # upperbound 전략을 사용한다면 upperbound 기준으로 정렬해야 한다.
+            # 2. Candidate 에서 iteration 돌며 best edge 구하는 과정
             if T2_upperbound:
-                candidate_nodes.sort(key = lambda x : -upperbound[x])
-
-            #########################################################
-            
-            # initial setting
-            best_edge = None; best_delta = 0  # edge and delta with maximal FR
-            most_FR = 0  # maximal follower rate
-            
-            if T2_upperbound:
-                c = len(candidate_nodes)
-                for i in range(c):
-                    u = candidate_nodes[i]
-                    if most_FR > functions.U_single(u, upperbound) * 2:
-                        break
-                    for j in range(i, c):
-                        v = candidate_nodes[j]
-                        if most_FR >= functions.U_single(u, upperbound) + functions.U_single(v, upperbound):
-                            break
-                        if most_FR >= functions.U_double(u, v, upperbound, coreness, G_prime):
-                            continue
-                        else:
-                            e = (u, v)
-                            delta_e = functions.computeDelta(G_prime, s, e, t, coreness)
-
-                            if delta_e > 0 and sum + delta_e <= b:
-                                # calculate the follower
-                                followers = functions.FindFollowers(e, delta_e, G_prime, s, coreness)
-                                FR = len(followers) / delta_e  # follower rate
-
-                                # renew the maximum value
-                                if FR > most_FR:
-                                    best_edge = e
-                                    best_delta = delta_e
-                                    most_FR = FR
+                best_edge, best_delta, most_FR = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
             else:
-                c = len(candidate_nodes)
-                for i in range(c):
-                    u = candidate_nodes[i]
-                    for j in range(i, c):
-                        v = candidate_nodes[j]
-                        e = (u, v)
-
-                        delta_e = functions.computeDelta(G_prime, s, e, t, coreness)
-
-                        if delta_e > 0 and sum + delta_e <= b:
-                            # calculate the follower
-                            followers = functions.FindFollowers(e, delta_e, G_prime, s, coreness)
-                            FR = len(followers) / delta_e  # follower rate
-
-                            # renew the maximum value
-                            if FR > most_FR:
-                                best_edge = e
-                                best_delta = delta_e
-                                most_FR = FR
-                    
+                best_edge, best_delta, most_FR = exp_func.iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, spent, FT)
         else:
-
-            candidate_edges = []
-
-            # Filter candidate edges
-            non_s_core = []
-            s_core = []
-            for n, d in G_prime.nodes(data=True):
-                if not d['label']:
-                    non_s_core.append(n)
-                else:
-                    s_core.append(n)
-                
-                if T2_upperbound:
-                    upperbound[n] = functions.Upperbound(G_prime, n, coreness, s)
-
+            # 1. Candidate 만드는 과정
+            candidate_edges = exp_func.make_candidate_edges(G_prime, G_prime.nodes, coreness, s, T2_upperbound, upperbound, UT)
+            
+            # 2. Candidate 에서 iteration 돌며 best edge 구하는 과정
             if T2_upperbound:
-                non_s_core.sort(key = lambda x : -upperbound[x])
-
-            # Intra non-core
-            non_len = len(non_s_core)
-            for i in range(non_len):
-                u = non_s_core[i]
-                for j in range(i+1, non_len):
-                    v = non_s_core[j]
-                    candidate_edges.append((u, v))
-
-            # core <-> non-core
-            for u in non_s_core:
-                for v in s_core:
-                    candidate_edges.append((u, v))
-
-            if T2_upperbound:
-                candidate_edges.sort(key = lambda x : (-upperbound[x[0]], -upperbound[x[1]]))   # s-core 는 upperbound 가 선언이 안 되어 있음
-
-            # initial setting
-            best_edge = None; best_delta = 0  # edge and delta with maximal FR
-            most_FR = 0  # maximal follower rate
-
-            if T2_upperbound:
-                for (u,v) in candidate_edges:
-                    if most_FR >= functions.U_single(u, upperbound) + functions.U_single(v, upperbound):
-                        break
-                    if most_FR >= functions.U_double(u, v, upperbound, coreness, G_prime):
-                        continue
-                    else:
-                        e = (u, v)
-                        delta_e = functions.computeDelta(G_prime, s, e, t, coreness)
-
-                        if delta_e > 0 and sum + delta_e <= b:
-                            # calculate the follower
-                            followers = functions.FindFollowers(e, delta_e, G_prime, s, coreness)
-                            FR = len(followers) / delta_e  # follower rate
-
-                            # renew the maximum value
-                            if FR > most_FR:
-                                best_edge = e
-                                best_delta = delta_e
-                                most_FR = FR
+                best_edge, best_delta, most_FR = exp_func.iteration_edges_upperbound(G_prime, candidate_edges, coreness, s, b, t, upperbound, spent, FT)
             else:
-                for (u,v) in candidate_edges:
-                    e = (u, v)
-                    delta_e = functions.computeDelta(G_prime, s, e, t, coreness)
-
-                    if delta_e > 0 and sum + delta_e <= b:
-                        # calculate the follower
-                        followers = functions.FindFollowers(e, delta_e, G_prime, s, coreness)
-                        FR = len(followers) / delta_e  # follower rate
-
-                        # renew the maximum value
-                        if FR > most_FR:
-                            best_edge = e
-                            best_delta = delta_e
-                            most_FR = FR
+                best_edge, best_delta, most_FR = exp_func.iteration_edges_no_upperbound(G_prime, candidate_edges, coreness, s, b, t, spent, FT)
                         
-
         # debugging 3
         # print()
         # print(best_edge)
@@ -197,7 +70,7 @@ def run(G, s, b, t):
                 G_prime.add_edge(u, v, weight=best_delta)
 
             # add budget
-            sum += best_delta
+            spent += best_delta
             # add answer
 
             A.add(((u, v), best_delta))
@@ -211,7 +84,7 @@ def run(G, s, b, t):
             # print("no more")
             break
     print(s_core_num)
-    return A
+    return A, FT, UT
 
 
 def self_edge_pruning(G):

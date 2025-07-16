@@ -31,7 +31,7 @@ def calculate_s_core(G, nodes, s, coreness):
 
                 if not G.nodes[node]['label']:
                     continue
-
+                
                 coreness[node] = (current_core, layer)
 
                 for neighbor in G.neighbors(node):
@@ -52,15 +52,13 @@ def calculate_s_core(G, nodes, s, coreness):
                 heapq.heappush(heap, (w, node))
 
     # debugging
-    # print(coreness)
     return s_core_num
 
-def calculate_s_core_(G, s):
-    weight_sum = {node: sum(G[u][v]['weight'] for u, v in G.edges(node)) for node in G.nodes}
-    for node in G.nodes:
+def calculate_s_core_(G, nodes, s, coreness):
+    weight_sum = {node: sum(G[u][v]['weight'] for u, v in G.edges(node)) for node in nodes}
+    for node in nodes:
         G.nodes[node]['label'] = True
-    s_core_num = len(G.nodes)
-    coreness = {}
+    s_core_num = len(nodes)
 
     # ─── heapdict로 교체 ─────────────────────────────────────────
     hd = heapdict()
@@ -103,7 +101,7 @@ def calculate_s_core_(G, s):
             for nbr, new_w in temp.items():
                 hd[nbr] = new_w
     # ─────────────────────────────────────────────────────────────
-    return s_core_num, coreness
+    return s_core_num
 
 
 # not considering T yet
@@ -232,8 +230,14 @@ def Upperbound(G, u, coreness, s):
 def U_single(u, upperbound):
     return upperbound[u]
 
-def U_double(u, v, upperbound, coreness, G):
-    if (G.has_edge(u, v) and coreness[u] < coreness[v]) or u == v:
+def U_double(u, v, upperbound, coreness, G, s):
+    # 이걸 넣어도 될까. self_edge X upperbound O 인 경우에 s-core 의 coreness 도 고려하게 된다
+    if G.nodes[v]['label']:
+        cv = (s, 0)
+    else:
+        cv = coreness[v]
+    
+    if (G.has_edge(u, v) and coreness[u] < cv) or u == v:
         return upperbound[u]
     else:
         return upperbound[u] + upperbound[v]

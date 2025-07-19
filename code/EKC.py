@@ -3,7 +3,7 @@ from itertools import combinations
 from collections import deque
 import functions
 
-def run_EKC(G, s, budget, t):
+def run(G, s, budget, t):
 
     G_prime = G.copy()
     A = set()      # the set of (increased edge, delta) pair
@@ -19,10 +19,15 @@ def run_EKC(G, s, budget, t):
             break
 
         # 1) Theorem 4: 후보 엣지 집합 생성
-        core_nodes  = [u for u, c in coreness.items() if c[0] >= s-1 and not G_prime.nodes[u]['label']]
-        shell_nodes = [u for u, c in coreness.items() if c[0] == s-1 and not G_prime.nodes[u]['label']]
-        # self edge 고려
-        candidate_edges = [(u, v) for u in shell_nodes for v in core_nodes]
+        core_nodes = [u for u in G_prime.nodes if G_prime.nodes[u]['label']]
+        shell_nodes = [u for u, c in coreness.items() if c[0] == s-1]
+        num_shell = len(shell_nodes)
+
+        candidate_edges = [(u, v) for u in shell_nodes for v in core_nodes] # 어떻게 해야 겹치는 걸 뺄 수 있을까
+        for i in range(num_shell):
+            for j in range(i+1, num_shell):
+                u, v = shell_nodes[i], shell_nodes[j]
+                candidate_edges.append((u, v))
         
         # 2) Theorem 5: onion layers 기반 추가 프루닝
         candidate_edges = deque(prune_by_theorem5(G_prime, coreness, s, candidate_edges))
@@ -33,11 +38,9 @@ def run_EKC(G, s, budget, t):
         while candidate_edges:
             u, v = candidate_edges.popleft()
 
-            # 이거 후보군을 좀 줄여야 한다.
-            upperbound = {u: functions.Upperbound(G_prime, u, coreness, s) for u in G_prime.nodes}
-            ub = functions.U_double(u, v, upperbound, coreness, G_prime)
-            if ub <= best_FR:
-                continue
+            # Upperbound 이용한 Pruning
+            # ub = functions.Upperbound(G_prime, u, coreness, s)
+            # upperbound 가 k보다 작은지 여부를 파악하는 건 가중치가 1일때만 가능
 
             F = functions.FindFollowers((u,v), 1, G_prime, s, coreness)
 
@@ -61,6 +64,7 @@ def run_EKC(G, s, budget, t):
         A.add((best_edge, best_delta))
 
         # 5) 변경된 Gp로 다시 k-core 계산 (Section 5.2 캐싱 활용)
+        coreness = {}
         s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)
 
     return A
@@ -69,24 +73,26 @@ def run_EKC(G, s, budget, t):
 def prune_by_theorem5(G, coreness, s, candidate_edges):
     pruned = []
     for u, v in candidate_edges:
-        cu, lu = coreness[u]
-        cv, lv = coreness[v]
+        Lu = coreness[u] if not G.nodes[u]['label'] else (s, 0)
+        Lv = coreness[v] if not G.nodes[v]['label'] else (s, 0)
 
         # u가 더 낮은 레이어가 되도록 swap
-        if lu > lv:
+        if Lu > Lv:
             u, v = v, u
-            cu, lu, cv, lv = cv, lv, cu, lu
+            Lu, Lv = Lv, Lu
 
+        # print(u, v, Lu, Lv)
         # u의 활성 이웃 수 d*(u) 계산:
-        #   - w가 (s-1)-core 여야 하고, l(w) > l(u) 여야 함
+        # l(w) > l(u) 여야 함
         d_star = 0
         for w in G.neighbors(u):
-            cw, lw = coreness[w]
-            if cw >= s-1 and lw > lu:   # <-- strictly greater
-                d_star += 1
+            Lw = coreness[w] if not G.nodes[w]['label'] else (s, 0)
+            if Lw > Lu:
+                d_star += G[u][w]['weight']
+        # print(d_star)
 
-        # Theorem 5 조건: d*(u) ≥ (s-1)
-        if d_star >= (s-1):
+        # Theorem 5 조건: d*(u) = (s-1)
+        if d_star == (s-1):
             pruned.append((u, v))
 
     return pruned
@@ -98,7 +104,7 @@ def prune_by_theorem6(G_prime, cand_queue, F_anchor):
     while cand_queue:
         u, v = cand_queue.popleft()
 
-        if u in F_anchor and (v in F_anchor or G_prime.nodes[v]['label']):  # self edge 고려해야 함
+        if u in F_anchor and (v in F_anchor or G_prime.nodes[v]['label']):
             continue
 
         # 그 외의 경우는 유지

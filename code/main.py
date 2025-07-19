@@ -6,6 +6,7 @@ import naive
 import adv
 import adv_reuse
 import experiment, experiment_reuse
+import EKC
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--s', type=int, default=10,
@@ -16,7 +17,7 @@ parser.add_argument('--t', type=str, default='',
                     help='a folder name for bound function') # 우선 bound가 없다고 가정하고 작성하시면 될 것 같습니다.
 parser.add_argument('--algorithm', default='naive',
                     help='specify algorithm name')
-parser.add_argument('--network', default="../dataset/test/LFR_first.dat",
+parser.add_argument('--network', default="../dataset/test/new_network.dat",
                     help='a folder name containing network.dat')
 parser.add_argument('--tactics', default="TTT",
                     help='ON/OFF for Tactics')
@@ -83,3 +84,9 @@ elif args.algorithm == "exp":
             if G_prime.nodes[i]['label']:
                 s_core_num += 1
         print(s_core_num)
+elif args.algorithm == "ekc":
+    start_time = time.time()
+    A = EKC.run(G, args.s, args.b, args.t)
+    end_time = time.time()
+    print(end_time - start_time)
+    print(A)

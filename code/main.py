@@ -7,9 +7,11 @@ import adv
 import adv_reuse
 import experiment, experiment_reuse
 import EKC
+import exact
+import compare
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--s', type=int, default=10,
+parser.add_argument('--s', type=int, default=5,
                     help='user parameter s')
 parser.add_argument('--b', type=int, default=10,
                     help='budget b')
@@ -21,6 +23,10 @@ parser.add_argument('--network', default="../dataset/test/new_network.dat",
                     help='a folder name containing network.dat')
 parser.add_argument('--tactics', default="TTT",
                     help='ON/OFF for Tactics')
+parser.add_argument('--compare_tactic', default="random",
+                    help='How to select anchor edge')
+parser.add_argument('--delta_tactic', default="compute",
+                    help='How to calculate delta')
 args = parser.parse_args()
 
 G = nx.read_weighted_edgelist(args.network, nodetype=int)
@@ -47,6 +53,7 @@ elif args.algorithm == "adv_reuse":
     end_time = time.time()
     print(end_time - start_time)
     print(A)
+
 elif args.algorithm == "exp":
     if args.tactics[0] == 'T':
         T1_self_edge = True
@@ -62,7 +69,7 @@ elif args.algorithm == "exp":
         A, FT, UT, G_prime = experiment_reuse.run(G, args.s, args.b, args.t, T1_self_edge, T2_upperbound)
         end_time = time.time()
         print(end_time - start_time)
-        # print(A)
+        print(A)
         # print(FT)
         # print(UT)
         s_core_num = 0
@@ -76,7 +83,7 @@ elif args.algorithm == "exp":
         A, FT, UT, G_prime = experiment.run(G, args.s, args.b, args.t, T1_self_edge, T2_upperbound)
         end_time = time.time()
         print(end_time - start_time)
-        # print(A)
+        print(A)
         # print(FT)
         # print(UT)
         s_core_num = 0
@@ -87,6 +94,19 @@ elif args.algorithm == "exp":
 elif args.algorithm == "ekc":
     start_time = time.time()
     A = EKC.run(G, args.s, args.b, args.t)
+    end_time = time.time()
+    print(end_time - start_time)
+    print(A)
+elif args.algorithm == "exact":
+    start_time = time.time()
+    A, gain = exact.run(G, args.s, args.b, args.t)
+    end_time = time.time()
+    print(end_time - start_time)
+    print(A)
+    print(gain)
+elif args.algorithm == "compare":
+    start_time = time.time()
+    A = compare.run(G, args.s, args.b, args.t, args.compare_tactic, args.delta_tactic)
     end_time = time.time()
     print(end_time - start_time)
     print(A)

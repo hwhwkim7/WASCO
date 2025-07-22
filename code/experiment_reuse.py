@@ -17,7 +17,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
     # INITIALIZE
     coreness = {}
     s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)
-    print(s_core_num)
+    # print(s_core_num)
     spent = 0 # the budget used
 
     upperbound = {}
@@ -31,7 +31,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
         best = max([e for e in (best_intra,best_inter) if e], key=lambda x:x[2], default=None)
         if not best: break
 
-        (u,v), delta, FR = best
+        (u,v), delta, FR, most_follower = best
 
         budget_left = b - spent
 
@@ -41,9 +41,9 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
                 intra_best.pop(c, None)
 
                 # Renew the connected component where the best edge came from using budget_left
-                edge2, d2, fr2 = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, UT, FT)
+                edge2, d2, fr2, most_follower = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, UT, FT)
                 if edge2 is not None:
-                    intra_best[c] = (edge2, d2, fr2)
+                    intra_best[c] = (edge2, d2, fr2, most_follower)
 
             else:
                 c1, c2 = comp_of[u], comp_of[v]
@@ -51,9 +51,9 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
                 inter_best.pop(key, None)
 
                 # Renew the intra cc where the best edge came from using budget_left
-                edge2, d2, fr2 = find_inter_best(G_prime, nodes_in[c],nodes_in[c2], coreness, s, t, b, spent, upperbound, FT)
+                edge2, d2, fr2, most_follower = find_inter_best(G_prime, nodes_in[c],nodes_in[c2], coreness, s, t, b, spent, upperbound, FT)
                 if edge2 is not None:
-                    inter_best[key] = (edge2, d2, fr2)
+                    inter_best[key] = (edge2, d2, fr2, most_follower)
 
             continue 
     
@@ -73,7 +73,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
         else:
             G_prime.add_edge(u,v, weight=delta)
         spent += delta
-        A.add(((u,v), delta))
+        A.add(((u,v), delta, FR, most_follower))
 
         # coreness 업데이트 (전역 계산 or 지역 계산? 확인해봐야 함) - 지역으로 바꾸기
         # s_core_num = functions.calculate_s_core(G_prime, s)
@@ -97,15 +97,15 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
                 invalidate({c}, intra_best, inter_best)
 
                 # Recompute
-                edge, delta2, FR2 = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT)
+                edge, delta2, FR2, most_follower = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT)
                 if edge:
-                    intra_best[c] = (edge, delta2, FR2)
+                    intra_best[c] = (edge, delta2, FR2, most_follower)
 
                 for z in nodes_in:
                     if z == c: continue
-                    edge2, delta3, FR3 = find_inter_best(G_prime, nodes_in[c], nodes_in[z], coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, FT)
+                    edge2, delta3, FR3, most_follower = find_inter_best(G_prime, nodes_in[c], nodes_in[z], coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, FT)
                     if edge2:
-                        inter_best[tuple(sorted((c,z)))] = (edge2, delta3, FR3)
+                        inter_best[tuple(sorted((c,z)))] = (edge2, delta3, FR3, most_follower)
 
         else:
             # inter : Union CC
@@ -130,14 +130,14 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
 
 
                 # New intra / inter
-                edge, delta2, FR2 = find_intra_best(G_prime, new_nodes, coreness, s, t, b-spent, upperbound, UT, FT)
-                if edge: intra_best[new_c] = (edge, delta2, FR2)
+                edge, delta2, FR2, most_follower = find_intra_best(G_prime, new_nodes, coreness, s, t, b-spent, upperbound, UT, FT)
+                if edge: intra_best[new_c] = (edge, delta2, FR2, most_follower)
 
                 for z in nodes_in:
                     if z == new_c: continue
-                    edge2, delta3, FR3 = find_inter_best(G_prime, nodes_in[new_c], nodes_in[z], coreness, s, t, b-spent, upperbound, FT)
+                    edge2, delta3, FR3, most_follower = find_inter_best(G_prime, nodes_in[new_c], nodes_in[z], coreness, s, t, b-spent, upperbound, FT)
                     if edge2:
-                        inter_best[tuple(sorted((new_c,z)))] = (edge2, delta3, FR3)
+                        inter_best[tuple(sorted((new_c,z)))] = (edge2, delta3, FR3, most_follower)
 
     return A, FT, UT, G_prime
 
@@ -186,17 +186,17 @@ def build_initial_caches(G, s, t, b, spent, coreness, upperbound, T1_self_edge, 
 
     # intra
     for cid, nodes in nodes_in.items():
-        edge, delta, FR = find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT)
+        edge, delta, FR, most_follower = find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT)
         if edge:
-            intra_best[cid] = (edge, delta, FR)
+            intra_best[cid] = (edge, delta, FR, most_follower)
 
     # inter
     for cid1, cid2 in combinations(nodes_in, 2):
-        edge, delta, FR = find_inter_best(G,
+        edge, delta, FR, most_follower = find_inter_best(G,
                                nodes_in[cid1], nodes_in[cid2],
                                coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, FT)
         if edge:
-            inter_best[tuple(sorted((cid1,cid2)))] = (edge, delta, FR)
+            inter_best[tuple(sorted((cid1,cid2)))] = (edge, delta, FR, most_follower)
 
     return comp_of, nodes_in, intra_best, inter_best, s_cand
 
@@ -207,19 +207,19 @@ def find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge
         candidate_nodes = exp_func.make_candidate_nodes(G, nodes, coreness, s, T2_upperbound, upperbound, UT)
 
         if T2_upperbound:
-            best_edge, best_delta, most_FR = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
+            best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
         else:
-            best_edge, best_delta, most_FR = exp_func.iteration_nodes_no_upperbound(G, candidate_nodes, coreness, s, b, t, spent, FT)
+            best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_no_upperbound(G, candidate_nodes, coreness, s, b, t, spent, FT)
     
     else:
         if T2_upperbound:
             candidate_nodes = exp_func.make_candidate_nodes_v2(G, G.nodes, coreness, s, T2_upperbound, upperbound, UT)
-            best_edge, best_delta, most_FR = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
+            best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
         else:
             candidate_edges = exp_func.make_candidate_edges(G, G.nodes, coreness, s, T2_upperbound, upperbound, UT)
-            best_edge, best_delta, most_FR = exp_func.iteration_edges_no_upperbound(G, candidate_edges, coreness, s, b, t, spent, FT)
+            best_edge, best_delta, most_FR, most_follower = exp_func.iteration_edges_no_upperbound(G, candidate_edges, coreness, s, b, t, spent, FT)
     
-    return best_edge, best_delta, most_FR   # best_edge is None → No appropriate edge in this CC
+    return best_edge, best_delta, most_FR, most_follower   # best_edge is None → No appropriate edge in this CC
 
 
 def find_inter_best(G, nodesA, nodesB, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, FT):
@@ -244,7 +244,7 @@ def find_inter_best(G, nodesA, nodesB, coreness, s, t, b, spent, upperbound, T1_
                 if not (G.nodes[u]['label'] and G.nodes[v]['label']):
                     candidate_edges.append((u,v))
         
-        best_edge, best_delta, most_FR = exp_func.iteration_edges_no_upperbound(G, candidate_edges, coreness, s, b, t, spent, FT)
+        best_edge, best_delta, most_FR, most_follower = exp_func.iteration_edges_no_upperbound(G, candidate_edges, coreness, s, b, t, spent, FT)
     else:
         
         best_edge, best_delta, most_FR = None, 0, 0.0
@@ -268,9 +268,9 @@ def find_inter_best(G, nodesA, nodesB, coreness, s, t, b, spent, upperbound, T1_
 
                     FR = len(followers) / delta_e
                     if FR > most_FR:
-                        best_edge, best_delta, most_FR = e, delta_e, FR
+                        best_edge, best_delta, most_FR, most_follower = e, delta_e, FR, len(followers)
 
-    return best_edge, best_delta, most_FR
+    return best_edge, best_delta, most_FR, most_follower
 
 
 def invalidate(ccs, intra_best, inter_best):

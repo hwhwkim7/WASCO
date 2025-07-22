@@ -31,7 +31,7 @@ def iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, uppe
     '''
     # initial setting
     best_edge = None; best_delta = 0  # edge and delta with maximal FR
-    most_FR = 0  # maximal follower rate
+    most_FR = 0; most_follower = 0  # maximal follower rate
 
     c = len(candidate_nodes)
     for i in range(c):
@@ -64,7 +64,8 @@ def iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, uppe
                         best_edge = e
                         best_delta = delta_e
                         most_FR = FR
-    return best_edge, best_delta, most_FR
+                        most_follower = len(followers)
+    return best_edge, best_delta, most_FR, most_follower
 
 def iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, spent, FT):
     '''
@@ -73,7 +74,7 @@ def iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, s
     '''
     # initial setting
     best_edge = None; best_delta = 0  # edge and delta with maximal FR
-    most_FR = 0  # maximal follower rate
+    most_FR = 0; most_follower = 0  # maximal follower rate
     c = len(candidate_nodes)
     for i in range(c):
         u = candidate_nodes[i]
@@ -97,7 +98,8 @@ def iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, s
                     best_edge = e
                     best_delta = delta_e
                     most_FR = FR
-    return best_edge, best_delta, most_FR
+                    most_follower = len(followers)
+    return best_edge, best_delta, most_FR, most_follower
 
 
 def make_candidate_edges(G_prime, nodes, coreness, s, T2_upperbound, upperbound, UT):
@@ -160,7 +162,7 @@ def iteration_edges_no_upperbound(G_prime, candidate_edges, coreness, s, b, t, s
     '''
     # initial setting
     best_edge = None; best_delta = 0  # edge and delta with maximal FR
-    most_FR = 0  # maximal follower rate
+    most_FR = 0; most_follower = 0  # maximal follower rate
 
     for (u,v) in candidate_edges:
         e = (u, v)
@@ -180,4 +182,5 @@ def iteration_edges_no_upperbound(G_prime, candidate_edges, coreness, s, b, t, s
                 best_edge = e
                 best_delta = delta_e
                 most_FR = FR
-    return best_edge, best_delta, most_FR
+                most_follower = len(followers)
+    return best_edge, best_delta, most_FR, most_follower

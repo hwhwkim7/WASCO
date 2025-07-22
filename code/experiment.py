@@ -38,16 +38,16 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
             
             # 2. Candidate 에서 iteration 돌며 best edge 구하는 과정
             if T2_upperbound:
-                best_edge, best_delta, most_FR = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
+                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
             else:
-                best_edge, best_delta, most_FR = exp_func.iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, spent, FT)
+                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, spent, FT)
         else:
             if T2_upperbound:
                 candidate_nodes = exp_func.make_candidate_nodes_v2(G_prime, G_prime.nodes, coreness, s, T2_upperbound, upperbound, UT)
-                best_edge, best_delta, most_FR = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
+                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
             else:
                 candidate_edges = exp_func.make_candidate_edges(G_prime, G_prime.nodes, coreness, s, T2_upperbound, upperbound, UT)
-                best_edge, best_delta, most_FR = exp_func.iteration_edges_no_upperbound(G_prime, candidate_edges, coreness, s, b, t, spent, FT)
+                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_edges_no_upperbound(G_prime, candidate_edges, coreness, s, b, t, spent, FT)
                         
         # debugging 3
         # print()
@@ -71,7 +71,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
             spent += best_delta
             # add answer
 
-            A.add(((u, v), best_delta))
+            A.add(((u, v), best_delta, most_FR, most_follower))
             # calculate s-core again
             coreness = {}
             s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)

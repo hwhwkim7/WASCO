@@ -6,12 +6,11 @@ import functions
 def run(G, s, budget, t):
 
     G_prime = G.copy()
-    A = set()      # the set of (increased edge, delta) pair
+    A = []     # the set of (increased edge, delta) pair
 
     # 초기 s-core(=k-core) 계산
     coreness = {}
     s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)  # Calculate s-core and coreness
-    print(s_core_num)
     sum = 0  # the budget used
 
     for _ in range(budget):
@@ -23,11 +22,12 @@ def run(G, s, budget, t):
         shell_nodes = [u for u, c in coreness.items() if c[0] == s-1]
         num_shell = len(shell_nodes)
 
-        candidate_edges = [(u, v) for u in shell_nodes for v in core_nodes] # 어떻게 해야 겹치는 걸 뺄 수 있을까
+        candidate_edges = [(u, v) for u in shell_nodes for v in core_nodes if not G.has_edge(u, v)] # 어떻게 해야 겹치는 걸 뺄 수 있을까
         for i in range(num_shell):
             for j in range(i+1, num_shell):
                 u, v = shell_nodes[i], shell_nodes[j]
-                candidate_edges.append((u, v))
+                if not G.has_edge(u, v):
+                    candidate_edges.append((u, v))
         
         # 2) Theorem 5: onion layers 기반 추가 프루닝
         candidate_edges = deque(prune_by_theorem5(G_prime, coreness, s, candidate_edges))
@@ -55,13 +55,14 @@ def run(G, s, budget, t):
             break
 
         u, v = best_edge
-        if G_prime.has_edge(u, v):
-            G_prime[u][v]['weight'] += best_delta
-        else:
-            G_prime.add_edge(u, v, weight=best_delta)
+        # if G_prime.has_edge(u, v):
+        #     G_prime[u][v]['weight'] += best_delta
+        # else:
+        #     G_prime.add_edge(u, v, weight=best_delta)
+        G_prime.add_edge(u, v, weight=best_delta)
 
         sum += 1
-        A.add((best_edge, best_delta))
+        A.append((best_edge, best_delta, best_FR, len(best_F)))
 
         # 5) 변경된 Gp로 다시 k-core 계산 (Section 5.2 캐싱 활용)
         coreness = {}

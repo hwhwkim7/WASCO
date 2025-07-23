@@ -1,7 +1,7 @@
 import functions
 import time
 
-def make_candidate_nodes(G_prime, nodes, coreness, s, T2_upperbound, upperbound, UT):
+def make_candidate_nodes(G_prime, nodes, coreness, s, b, T2_upperbound, upperbound, UT):
     '''
     self_edge 전략을 사용한다면 s-core 는 완벽히 무시가 가능하다. 
     그렇기에 non-s-core 를 candidate_nodes 로 저장하여 이 노드들 간의 조합만 확인한다.
@@ -10,7 +10,8 @@ def make_candidate_nodes(G_prime, nodes, coreness, s, T2_upperbound, upperbound,
     # candidate_nodes 집합
     candidate_nodes = []
     for u in nodes:
-        if not G_prime.nodes[u]['label']:
+        # 잔여 budget 을 넘어서는 delta 가 필요하다면 pruning
+        if not G_prime.nodes[u]['label'] and s - coreness[u][0] <= b:
             candidate_nodes.append(u)
             # upperbound 계산
             if T2_upperbound:
@@ -102,7 +103,7 @@ def iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, s
     return best_edge, best_delta, most_FR, most_follower
 
 
-def make_candidate_edges(G_prime, nodes, coreness, s, T2_upperbound, upperbound, UT):
+def make_candidate_edges(G_prime, nodes, coreness, s, b, T2_upperbound, upperbound, UT):
     '''
     upperbound 전략을 사용하지 않을 때.
     self_edge 전략을 사용하지 않기에 s-core 와의 연결도 고려해야 한다.
@@ -112,11 +113,13 @@ def make_candidate_edges(G_prime, nodes, coreness, s, T2_upperbound, upperbound,
 
     non_s_core = []
     s_core = []
-    for n, d in G_prime.nodes(data=True):
-        if not d['label']:
-            non_s_core.append(n)
+    for u in nodes:
+        if s - coreness.get(u, (s, 0))[0] > b:
+            continue
+        if not G_prime.nodes[u]['label']:
+            non_s_core.append(u)
         else:
-            s_core.append(n)
+            s_core.append(u)
 
     # Intra non-core
     non_len = len(non_s_core)
@@ -133,7 +136,7 @@ def make_candidate_edges(G_prime, nodes, coreness, s, T2_upperbound, upperbound,
 
     return candidate_edges
 
-def make_candidate_nodes_v2(G_prime, nodes, coreness, s, T2_upperbound, upperbound, UT):
+def make_candidate_nodes_v2(G_prime, nodes, coreness, s, b, T2_upperbound, upperbound, UT):
     '''
     upperbound 전략을 사용할 때
     self_edge 전략을 사용하지 않지만 upperbound 를 사용하기 위해 candidate_nodes 집합을 만든다. 
@@ -141,16 +144,20 @@ def make_candidate_nodes_v2(G_prime, nodes, coreness, s, T2_upperbound, upperbou
     '''
     candidate_nodes = []
 
-    for n in nodes:
-        if not G_prime.nodes[n]['label']:
+    for u in nodes:
+        # 잔여 budget 을 넘어서는 delta 가 필요하다면 pruning
+        if s - coreness.get(u, (s, 0))[0] > b:
+            continue
+
+        if not G_prime.nodes[u]['label']:
             temp_start = time.time()
-            upperbound[n] = functions.Upperbound(G_prime, n, coreness, s)
+            upperbound[u] = functions.Upperbound(G_prime, u, coreness, s)
             temp_end = time.time()
             UT += temp_end - temp_start
         else:
             if T2_upperbound:
-                upperbound[n] = 0
-        candidate_nodes.append(n)
+                upperbound[u] = 0
+        candidate_nodes.append(u)
     
     candidate_nodes.sort(key = lambda x : -upperbound[x])
 

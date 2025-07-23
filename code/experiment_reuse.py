@@ -204,7 +204,7 @@ def build_initial_caches(G, s, t, b, spent, coreness, upperbound, T1_self_edge, 
 def find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT):
 
     if T1_self_edge:
-        candidate_nodes = exp_func.make_candidate_nodes(G, nodes, coreness, s, T2_upperbound, upperbound, UT)
+        candidate_nodes = exp_func.make_candidate_nodes(G, nodes, coreness, s, b, T2_upperbound, upperbound, UT)
 
         if T2_upperbound:
             best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
@@ -213,10 +213,10 @@ def find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge
     
     else:
         if T2_upperbound:
-            candidate_nodes = exp_func.make_candidate_nodes_v2(G, G.nodes, coreness, s, T2_upperbound, upperbound, UT)
+            candidate_nodes = exp_func.make_candidate_nodes_v2(G, nodes, coreness, s, b, T2_upperbound, upperbound, UT)
             best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
         else:
-            candidate_edges = exp_func.make_candidate_edges(G, G.nodes, coreness, s, T2_upperbound, upperbound, UT)
+            candidate_edges = exp_func.make_candidate_edges(G, nodes, coreness, s, b, T2_upperbound, upperbound, UT)
             best_edge, best_delta, most_FR, most_follower = exp_func.iteration_edges_no_upperbound(G, candidate_edges, coreness, s, b, t, spent, FT)
     
     return best_edge, best_delta, most_FR, most_follower   # best_edge is None → No appropriate edge in this CC
@@ -225,11 +225,11 @@ def find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge
 def find_inter_best(G, nodesA, nodesB, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, FT):
     # Filter candidate_edges
     if T1_self_edge:
-        candA = [u for u in nodesA if not G.nodes[u]['label']]
-        candB = [v for v in nodesB if not G.nodes[v]['label']]
+        candA = [u for u in nodesA if not G.nodes[u]['label'] and s - coreness[u][0] <= b]
+        candB = [v for v in nodesB if not G.nodes[v]['label'] and s - coreness[v][0] <= b]
     else:
-        candA = list(nodesA)
-        candB = list(nodesB)
+        candA = [u for u in nodesA if s - coreness.get(u, (s, 0))[0] <= b]
+        candB = [v for v in nodesB if s - coreness.get(v, (s, 0))[0] <= b]
 
     if T2_upperbound:
         candA.sort(key=lambda u: -upperbound[u])

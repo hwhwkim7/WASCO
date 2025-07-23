@@ -106,7 +106,7 @@ def run(G, s, b, t):
             # add budget
             sum += best_delta
             # add answer
-            A.add(((u, v), best_delta))
+            A.add(((u, v), best_delta, max_FR))
             # calculate s-core again
             coreness = {}
             s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)

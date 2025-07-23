@@ -26,7 +26,7 @@ def make_candidate_nodes(G_prime, nodes, coreness, s, b, T2_upperbound, upperbou
     
     return candidate_nodes
 
-def iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, upperbound, spent, FT):
+def iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, T1_self_edge, t, upperbound, spent, FT, s_cand):
     '''
     self_edge, upperbound 전략을 모두 사용할 때의 iteration.
     '''
@@ -40,7 +40,7 @@ def iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, uppe
         # TODO 크거나 같다
         if most_FR >= functions.U_single(u, upperbound) * 2:
             break
-        for j in range(i, c):
+        for j in range(i if T1_self_edge else i+1, c):
             v = candidate_nodes[j]
             if most_FR >= functions.U_single(u, upperbound) + functions.U_single(v, upperbound):
                 break
@@ -48,6 +48,9 @@ def iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, uppe
                 continue
             else:
                 e = (u, v)
+                if u == v:
+                    e = (u, s_cand)
+
                 delta_e = functions.computeDelta(G_prime, s, e, t, coreness)
 
                 if delta_e > 0 and spent + delta_e <= b:
@@ -68,7 +71,7 @@ def iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, uppe
                         most_follower = len(followers)
     return best_edge, best_delta, most_FR, most_follower
 
-def iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, spent, FT):
+def iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, spent, FT, s_cand):
     '''
     self_edge 전략만 사용할 때의 iteration. 
     upperbound 를 이용한 pruning 은 없다.
@@ -82,6 +85,8 @@ def iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, s
         for j in range(i, c):
             v = candidate_nodes[j]
             e = (u, v)
+            if u == v:
+                e = (u, s_cand)
 
             delta_e = functions.computeDelta(G_prime, s, e, t, coreness)
 

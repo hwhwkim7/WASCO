@@ -93,7 +93,7 @@ def run(G, s, b, t):
             # add answer
 
             # 고치기 s_cand 로
-            A.add(((u, v), best_delta))
+            A.add(((u, v), best_delta, most_FR))
             # calculate s-core again
             coreness = {}
             s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)

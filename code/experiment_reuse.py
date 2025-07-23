@@ -12,7 +12,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
     UT = 0.0
 
     G_prime = G.copy()
-    A = set() # the set of (increased edge, delta) pair
+    A = [] # the set of (increased edge, delta) pair
 
     # INITIALIZE
     coreness = {}
@@ -41,7 +41,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
                 intra_best.pop(c, None)
 
                 # Renew the connected component where the best edge came from using budget_left
-                edge2, d2, fr2, most_follower = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, UT, FT)
+                edge2, d2, fr2, most_follower = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, UT, FT, s_cand)
                 if edge2 is not None:
                     intra_best[c] = (edge2, d2, fr2, most_follower)
 
@@ -73,7 +73,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
         else:
             G_prime.add_edge(u,v, weight=delta)
         spent += delta
-        A.add(((u,v), delta, FR, most_follower))
+        A.append(((u,v), delta, FR, most_follower))
 
         # coreness 업데이트 (전역 계산 or 지역 계산? 확인해봐야 함) - 지역으로 바꾸기
         # s_core_num = functions.calculate_s_core(G_prime, s)
@@ -93,11 +93,12 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
                 invalidate({c}, intra_best, inter_best)  # 캐시 엔트리 삭제
                 nodes_in.pop(c)
             else:
-                nodes_in[c] = new_nodes
+                if T1_self_edge:
+                    nodes_in[c] = new_nodes
                 invalidate({c}, intra_best, inter_best)
 
                 # Recompute
-                edge, delta2, FR2, most_follower = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT)
+                edge, delta2, FR2, most_follower = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT, s_cand)
                 if edge:
                     intra_best[c] = (edge, delta2, FR2, most_follower)
 
@@ -130,7 +131,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
 
 
                 # New intra / inter
-                edge, delta2, FR2, most_follower = find_intra_best(G_prime, new_nodes, coreness, s, t, b-spent, upperbound, UT, FT)
+                edge, delta2, FR2, most_follower = find_intra_best(G_prime, new_nodes, coreness, s, t, b-spent, upperbound, UT, FT, s_cand)
                 if edge: intra_best[new_c] = (edge, delta2, FR2, most_follower)
 
                 for z in nodes_in:
@@ -186,7 +187,7 @@ def build_initial_caches(G, s, t, b, spent, coreness, upperbound, T1_self_edge, 
 
     # intra
     for cid, nodes in nodes_in.items():
-        edge, delta, FR, most_follower = find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT)
+        edge, delta, FR, most_follower = find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT, s_cand)
         if edge:
             intra_best[cid] = (edge, delta, FR, most_follower)
 
@@ -201,20 +202,20 @@ def build_initial_caches(G, s, t, b, spent, coreness, upperbound, T1_self_edge, 
     return comp_of, nodes_in, intra_best, inter_best, s_cand
 
 
-def find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT):
+def find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT, s_cand):
 
     if T1_self_edge:
         candidate_nodes = exp_func.make_candidate_nodes(G, nodes, coreness, s, b, T2_upperbound, upperbound, UT)
 
         if T2_upperbound:
-            best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
+            best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, T1_self_edge, t, upperbound, spent, FT, s_cand)
         else:
-            best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_no_upperbound(G, candidate_nodes, coreness, s, b, t, spent, FT)
+            best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_no_upperbound(G, candidate_nodes, coreness, s, b, t, spent, FT, s_cand)
     
     else:
         if T2_upperbound:
             candidate_nodes = exp_func.make_candidate_nodes_v2(G, nodes, coreness, s, b, T2_upperbound, upperbound, UT)
-            best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
+            best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G, candidate_nodes, coreness, s, b, T1_self_edge, t, upperbound, spent, FT, s_cand)
         else:
             candidate_edges = exp_func.make_candidate_edges(G, nodes, coreness, s, b, T2_upperbound, upperbound, UT)
             best_edge, best_delta, most_FR, most_follower = exp_func.iteration_edges_no_upperbound(G, candidate_edges, coreness, s, b, t, spent, FT)

@@ -65,7 +65,7 @@ def run_reuse(G, s, b, t):
         else:
             G_prime.add_edge(u,v, weight=delta)
         sum += delta
-        A.add(((u,v), delta))
+        A.add(((u,v), delta, FR))
 
         # coreness 업데이트 (전역 계산 or 지역 계산? 확인해봐야 함) - 지역으로 바꾸기
         # s_core_num = functions.calculate_s_core(G_prime, s)

@@ -4,7 +4,7 @@
 # usage: bash run_experiments.sh
 
 ALGO="exp"
-S=10
+S=5
 B=10
 
 # 모든 3자리 이진 조합(F/F→0, T/ T→1)

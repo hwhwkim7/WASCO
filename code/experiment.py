@@ -10,16 +10,16 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
     UT = 0.0
 
     G_prime = G.copy()
-    A = set()  # the set of (increased edge, delta) pair
+    A = []  # the set of (increased edge, delta) pair
     
     # calculate_s_core 에는 coreness 재선언이 없기 때문에 선언 후 시작
     coreness = {}
     s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)  # Calculate s-core and coreness
-    print(s_core_num)
     spent = 0  # the budget used
     
 
     # self_edge theorem 을 사용하면 s-core 는 후보에서 영원히 제거된다.
+    s_cand = None   # upperbound 를 사용할 때, self_edge 를 사용하는 것과 사용하지 않는 것에서 같은 함수를 사용하기 위함
     if T1_self_edge:
         non_s_core, s_cand = self_edge_pruning(G_prime) # pruned set
 
@@ -38,13 +38,13 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
             
             # 2. Candidate 에서 iteration 돌며 best edge 구하는 과정
             if T2_upperbound:
-                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
+                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, T1_self_edge, t, upperbound, spent, FT, s_cand)
             else:
-                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, spent, FT)
+                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, spent, FT, s_cand)
         else:
             if T2_upperbound:
                 candidate_nodes = exp_func.make_candidate_nodes_v2(G_prime, G_prime.nodes, coreness, s, b, T2_upperbound, upperbound, UT)
-                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, t, upperbound, spent, FT)
+                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, T1_self_edge, t, upperbound, spent, FT, s_cand)
             else:
                 candidate_edges = exp_func.make_candidate_edges(G_prime, G_prime.nodes, coreness, s, b, T2_upperbound, upperbound, UT)
                 best_edge, best_delta, most_FR, most_follower = exp_func.iteration_edges_no_upperbound(G_prime, candidate_edges, coreness, s, b, t, spent, FT)
@@ -71,7 +71,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
             spent += best_delta
             # add answer
 
-            A.add(((u, v), best_delta, most_FR, most_follower))
+            A.append(((u, v), best_delta, most_FR, most_follower))
             # calculate s-core again
             coreness = {}
             s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)

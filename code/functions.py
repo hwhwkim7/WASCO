@@ -233,8 +233,13 @@ def U_single(u, upperbound):
 def U_double(u, v, upperbound, coreness, G, s):
     if G.nodes[v]['label']:
         return upperbound[u]
+    if G.nodes[u]['label']:
+        return upperbound[v]
     
     if (G.has_edge(u, v) and coreness[u] < coreness[v]) or u == v:
         return upperbound[u]
+    elif G.has_edge(u, v) and coreness[u] > coreness[v]:
+        return upperbound[v]
+    # coreness 가 같은 경우는 그냥 더해줘야 할듯
     else:
         return upperbound[u] + upperbound[v]

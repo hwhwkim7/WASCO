@@ -268,7 +268,7 @@ def find_inter_best(G, nodesA, nodesB, coreness, s, t, b, spent, upperbound, T1_
                     FT += temp_end - temp_start
 
                     FR = len(followers) / delta_e
-                    if FR > most_FR:
+                    if FR > most_FR or (FR == most_FR and best_edge is not None and e < best_edge):
                         best_edge, best_delta, most_FR, most_follower = e, delta_e, FR, len(followers)
 
     return best_edge, best_delta, most_FR, most_follower

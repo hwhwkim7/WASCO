@@ -1,5 +1,7 @@
 import functions
 import time
+import csv
+import os
 
 def make_candidate_nodes(G_prime, nodes, coreness, s, b, T2_upperbound, upperbound, UT):
     '''
@@ -196,3 +198,16 @@ def iteration_edges_no_upperbound(G_prime, candidate_edges, coreness, s, b, t, s
                 most_FR = FR
                 most_follower = len(followers)
     return best_edge, best_delta, most_FR, most_follower
+
+def save_result_to_csv(A, s_core_num, total_time, memory, args):
+    write_header = not os.path.exists(args.output_path)
+    data = args.network.split('/')[3]
+
+    with open(args.output_path, 'a', newline='') as f:
+        writer = csv.writer(f)
+        if write_header:
+            writer.writerow(["data", "s", "b", "tactics", "num_s_core", "num_anchored_edges", "iter", "delta", "num_follower", "total_time", "memory"])
+        for idx, (_, delta, _, num_follower) in enumerate(A, start=1):
+            writer.writerow(
+                [data, args.s, args.b, args.tactics, s_core_num, len(A), idx, delta, num_follower, total_time, memory])
+    print(f"Saved results to {data, args.s, args.b, args.tactics}")

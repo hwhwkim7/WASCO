@@ -41,7 +41,7 @@ def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
                 intra_best.pop(c, None)
 
                 # Renew the connected component where the best edge came from using budget_left
-                edge2, d2, fr2, most_follower = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, UT, FT, s_cand)
+                edge2, d2, fr2, most_follower = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT, s_cand)
                 if edge2 is not None:
                     intra_best[c] = (edge2, d2, fr2, most_follower)
 
@@ -231,6 +231,9 @@ def find_inter_best(G, nodesA, nodesB, coreness, s, t, b, spent, upperbound, T1_
     else:
         candA = [u for u in nodesA if s - coreness.get(u, (s, 0))[0] <= b]
         candB = [v for v in nodesB if s - coreness.get(v, (s, 0))[0] <= b]
+    if not candA or not candB:
+        return None, None, None, None
+
 
     if T2_upperbound:
         candA.sort(key=lambda u: -upperbound[u])
@@ -248,7 +251,7 @@ def find_inter_best(G, nodesA, nodesB, coreness, s, t, b, spent, upperbound, T1_
         best_edge, best_delta, most_FR, most_follower = exp_func.iteration_edges_no_upperbound(G, candidate_edges, coreness, s, b, t, spent, FT)
     else:
         
-        best_edge, best_delta, most_FR = None, 0, 0.0
+        best_edge, best_delta, most_FR, most_follower = None, 0, 0.0, 0
 
         for i, u in enumerate(candA):
             if T2_upperbound and most_FR > functions.U_single(u, upperbound) + functions.U_single(candB[0], upperbound):

@@ -3,24 +3,25 @@ from heapdict import heapdict
 from collections import deque
 
 def calculate_s_core(G, nodes, s, coreness):
-    weight_sum = {node: sum(G[u][v]['weight'] for u, v in G.edges(node)) for node in nodes}
+    # Initialize
     for node in nodes:
         G.nodes[node]['label'] = True
     s_core_num = len(nodes)
 
-    # make heap with the key : weight sum
+    # Make heap with the key : weight sum
+    weight_sum = {node: sum(G[u][v]['weight'] for u, v in G.edges(node)) for node in nodes}
     heap = [(weight, node) for node, weight in weight_sum.items()]
     heapq.heapify(heap)
 
-    # Calculating coreness L(u) = (c(u), l(u))
-    # this loop for c(u)
+    # Calculate coreness and layer L(u) = (c(u), l(u)) / Core decomposition
+    # loop for c(u)
     while heap:
         current_core, node = heap[0]
         # doesn't have to consider node with having coreness larger than s
         if current_core >= s:
             break
         
-        # this loop for l(u)
+        # loop for l(u)
         layer = 0
         while heap and heap[0][0] <= current_core:
             layer += 1
@@ -29,79 +30,79 @@ def calculate_s_core(G, nodes, s, coreness):
             while heap and heap[0][0] <= current_core:
                 weight, node = heapq.heappop(heap)
 
+                # already visited
                 if not G.nodes[node]['label']:
                     continue
                 
                 coreness[node] = (current_core, layer)
 
+                # Update neighbor's weight_sum
                 for neighbor in G.neighbors(node):
-                    if not G.nodes[neighbor]['label']:
+                    if neighbor not in nodes:   # This means neighbor is not target to consider (Already was s-core)
                         continue
-                    # reuse 에서 s-core 에 있는 노드들을 넣지 않기 때문에 기존 s-core 가 저장되어 있지 않음
-                    # 즉 기존 s-core 로 향하는 neighbor 들을 차단해줘야 함. ->overhead?
-                    if neighbor not in nodes:
+                    if not G.nodes[neighbor]['label']:  # This means neighbor is already visited.
                         continue
+                    
                     weight_sum[neighbor] -= G[node][neighbor]['weight']
                     temp[neighbor] = weight_sum[neighbor]
 
                 G.nodes[node]['label'] = False
                 s_core_num -= 1
             
-            # renew the key of neighbors (quite ineffective?)
+            # renew the key of neighbors at once (for layer counting)
             for (node, w) in temp.items():
                 heapq.heappush(heap, (w, node))
 
-    # debugging
     return s_core_num
 
-def calculate_s_core_(G, nodes, s, coreness):
-    weight_sum = {node: sum(G[u][v]['weight'] for u, v in G.edges(node)) for node in nodes}
-    for node in nodes:
-        G.nodes[node]['label'] = True
-    s_core_num = len(nodes)
+# def calculate_s_core_(G, nodes, s, coreness):
+#     weight_sum = {node: sum(G[u][v]['weight'] for u, v in G.edges(node)) for node in nodes}
+#     for node in nodes:
+#         G.nodes[node]['label'] = True
+#     s_core_num = len(nodes)
 
-    # ─── heapdict로 교체 ─────────────────────────────────────────
-    hd = heapdict()
-    for node, w in weight_sum.items():
-        hd[node] = w
+#     # ─── heapdict로 교체 ─────────────────────────────────────────
+#     hd = heapdict()
+#     for node, w in weight_sum.items():
+#         hd[node] = w
 
-    # Calculating coreness L(u) = (c(u), l(u))
-    # this loop for c(u)
-    while hd:
-        node_min, current_core = hd.peekitem()  # 최소값 노드·우선순위 확인
-        # doesn't have to consider node with having coreness larger than s
-        if current_core >= s:
-            break
+#     # Calculating coreness L(u) = (c(u), l(u))
+#     # this loop for c(u)
+#     while hd:
+#         node_min, current_core = hd.peekitem()  # 최소값 노드·우선순위 확인
+#         # doesn't have to consider node with having coreness larger than s
+#         if current_core >= s:
+#             break
         
-        # this loop for l(u)
-        layer = 0
-        # 남아 있는 노드 중에서도 우선순위 ≤ current_core인 동안
-        while hd and hd.peekitem()[1] <= current_core:
-            layer += 1
-            temp = {}
+#         # this loop for l(u)
+#         layer = 0
+#         # 남아 있는 노드 중에서도 우선순위 ≤ current_core인 동안
+#         while hd and hd.peekitem()[1] <= current_core:
+#             layer += 1
+#             temp = {}
 
-            # coreness가 (current_core, layer)인 노드들 처리
-            while hd and hd.peekitem()[1] <= current_core:
-                node, weight = hd.popitem()  # (node, priority)
-                if not G.nodes[node]['label']:
-                    continue
+#             # coreness가 (current_core, layer)인 노드들 처리
+#             while hd and hd.peekitem()[1] <= current_core:
+#                 node, weight = hd.popitem()  # (node, priority)
+#                 if not G.nodes[node]['label']:
+#                     continue
 
-                coreness[node] = (current_core, layer)
+#                 coreness[node] = (current_core, layer)
 
-                for nbr in G.neighbors(node):
-                    if not G.nodes[nbr]['label']:
-                        continue
-                    weight_sum[nbr] -= G[node][nbr]['weight']
-                    temp[nbr] = weight_sum[nbr]
+#                 for nbr in G.neighbors(node):
+#                     if not G.nodes[nbr]['label']:
+#                         continue
+#                     weight_sum[nbr] -= G[node][nbr]['weight']
+#                     temp[nbr] = weight_sum[nbr]
 
-                G.nodes[node]['label'] = False
-                s_core_num -= 1
+#                 G.nodes[node]['label'] = False
+#                 s_core_num -= 1
 
-            # 이웃 우선순위 갱신(decrease-key)
-            for nbr, new_w in temp.items():
-                hd[nbr] = new_w
-    # ─────────────────────────────────────────────────────────────
-    return s_core_num
+#             # 이웃 우선순위 갱신(decrease-key)
+#             for nbr, new_w in temp.items():
+#                 hd[nbr] = new_w
+#     # ─────────────────────────────────────────────────────────────
+#     return s_core_num
 
 
 # not considering T yet

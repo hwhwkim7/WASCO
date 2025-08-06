@@ -1,102 +1,255 @@
 import networkx as nx
 from itertools import combinations
+import time
 import sys
+
 import functions
 import exp_func
 
-def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True):
-    # Time
-    FT = 0.0
-    UT = 0.0
+def run(G, s, b, t, T1_self_edge = True, T2_upperbound = True, T3_reuse = True):
+    # Tactic 1 self_edge and Tactic 2 upperbound as a parameter
+
+    FT = 0.0    # Follower computing time
+    UT = 0.0    # Upperbound computing time
 
     G_prime = G.copy()
-    A = []  # the set of (increased edge, delta) pair
+    A = []  # The anchored edges
     
-    # calculate_s_core 에는 coreness 재선언이 없기 때문에 선언 후 시작
+    # Calculate s-core, coreness, layer
+    # The information whether the node is in s-core is stored as a attribute in graph.
     coreness = {}
-    s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)  # Calculate s-core and coreness
+    s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)
+
     spent = 0  # the budget used
     
-
-    # self_edge theorem 을 사용하면 s-core 는 후보에서 영원히 제거된다.
-    s_cand = None   # upperbound 를 사용할 때, self_edge 를 사용하는 것과 사용하지 않는 것에서 같은 함수를 사용하기 위함
+    # Using self_edge theorem, s-core are permanently removed in candidates.
+    s_cand = None   # Only store one node in s-core for anchoring self edge.
     if T1_self_edge:
-        non_s_core, s_cand = self_edge_pruning(G_prime) # pruned set
+        non_s_core, s_cand = exp_func.self_edge_pruning(G_prime) # pruned set
 
-    # 딕셔너리 선언만 해두는 건 크게 잡아먹지 않을듯?
     upperbound = {}
 
+    # Using reuse theorem, store the best edge of each connected component.
+    if T3_reuse:
+        comp_of, nodes_in, intra_best, s_cand = build_initial_caches(G_prime, s, t, b, spent, coreness, upperbound, T1_self_edge, T2_upperbound, UT, FT)
+    else:
+        comp_of = {}
+
+    ### ITERATION START
     while spent < b:
         '''
-        self_edge 전략과 upperbound 전략에 따라 아래 두 과정을 다르게 진행한다.
-        1. Candidate 만드는 과정
-        2. Candidate 에서 iteration 돌며 best edge 구하는 과정
+        Considering self_edge tactic and upperbound tactic, two procedures below are differently progressed.
+        1. Making Candidate
+        2. Iterating Candidate to find best edge
         '''
+        # init value
+        best = (None, 0, 0.0, 0)
+        # Reuse Logic : First, get best edge using Cache. Second, edges in same component can be pruned.
+        if T3_reuse:
+            best_intra = max(intra_best.values(), key=lambda x:x[2], default=None)
+            if best_intra:
+                best = best_intra
+        
         if T1_self_edge:
-            # 1. Candidate 만드는 과정
-            candidate_nodes = exp_func.make_candidate_nodes(G_prime, non_s_core, coreness, s, b, T2_upperbound, upperbound, UT)
+            # 1. Making Candidate
+            candidate_nodes = exp_func.make_candidate_nodes(G_prime, non_s_core, s, b, coreness, upperbound, UT, T2_upperbound)
             
-            # 2. Candidate 에서 iteration 돌며 best edge 구하는 과정
+            # 2. Iterating Candidate to find best edge
             if T2_upperbound:
-                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, T1_self_edge, t, upperbound, spent, FT, s_cand)
+                # tactics TT
+                best = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, s, b, t, spent, coreness, upperbound, s_cand, FT, T1_self_edge, T3_reuse, comp_of, best)
             else:
-                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_no_upperbound(G_prime, candidate_nodes, coreness, s, b, t, spent, FT, s_cand)
+                # tactics TF
+                best = exp_func.iteration_nodes_no_upperbound(G_prime, candidate_nodes, s, b, t, spent, coreness, s_cand, FT, T3_reuse, comp_of, best)
         else:
             if T2_upperbound:
-                candidate_nodes = exp_func.make_candidate_nodes_v2(G_prime, G_prime.nodes, coreness, s, b, T2_upperbound, upperbound, UT)
-                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, coreness, s, b, T1_self_edge, t, upperbound, spent, FT, s_cand)
+                # tactics FT
+                candidate_nodes = exp_func.make_candidate_nodes_v2(G_prime, G_prime.nodes, s, b, coreness, upperbound, UT, T2_upperbound)
+                best = exp_func.iteration_nodes_upperbound(G_prime, candidate_nodes, s, b, t, spent, coreness, upperbound, s_cand, FT, T1_self_edge, T3_reuse, comp_of, best)
             else:
-                candidate_edges = exp_func.make_candidate_edges(G_prime, G_prime.nodes, coreness, s, b, T2_upperbound, upperbound, UT)
-                best_edge, best_delta, most_FR, most_follower = exp_func.iteration_edges_no_upperbound(G_prime, candidate_edges, coreness, s, b, t, spent, FT)
-                        
+                # tactics FF
+                candidate_edges = exp_func.make_candidate_edges(G_prime, G_prime.nodes, s, b, coreness)
+                best = exp_func.iteration_edges_no_upperbound(G_prime, candidate_edges, s, b, t, spent, coreness, FT, T3_reuse, comp_of, best)
+
+        # No more possible anchor edge
+        if not best[0]: break
+
+        best_edge, best_delta, most_FR, most_follower = best
+        (u,v) = best_edge
+
+        # Left budget cannot handle delta (only edge from reuse logic)
+        if best_delta > b - spent:
+            if best == best_intra:
+                c = comp_of[u]
+                intra_best.pop(c, None)
+
+                # Renew the connected component where the best edge came from using budget_left
+                edge2, d2, fr2, most_follower = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT, s_cand)
+                if edge2 is not None:
+                    intra_best[c] = (edge2, d2, fr2, most_follower)
+
+            else:
+                # In the iteration, we check budget in selecting candidates.
+                print("[ERROR] Cannot happen. Some error detected")
+
+            continue 
+    
         # debugging 3
         # print()
-        # print(best_edge)
-        # print(best_delta)
-        # print(most_FR)
+        # print(best)
 
-        # Update G_prime
-        if best_edge is not None:
-            u, v = best_edge
-            if u == v:
-                v = s_cand
+        ### Anchor best edge
+        # Consider self edge
+        if u == v:
+            v = s_cand
 
-            # add edge weight
-            if G_prime.has_edge(u, v):
-                G_prime[u][v]['weight'] += best_delta
+        # Update Graph
+        if G_prime.has_edge(u,v):
+            G_prime[u][v]['weight'] += best_delta
+        else:
+            G_prime.add_edge(u,v, weight=best_delta)
+        
+        # add budget
+        spent += best_delta
+
+        # add answer
+        A.append(((u,v), best_delta, most_FR, most_follower))
+
+        # Update coreness (When using reuse tactic, update it locally)
+        if T3_reuse:
+            # ----- Renew Cache --------------------------------
+            # intra vs inter
+            if best == best_intra:
+                # same CC
+                c = comp_of[u]
+
+                # calculate locally
+                s_core_num = functions.calculate_s_core(G_prime, nodes_in[c], s, coreness)
+
+                new_nodes = {v for v in nodes_in[c] if not G_prime.nodes[v]['label']}
+
+                # Check whteher non-s-core is left in CC
+                if not new_nodes:
+                    # Delete Cache
+                    invalidate({c}, intra_best)
+                    nodes_in.pop(c)
+                else:
+                    # Using self_edge tactic, only store non-s-core in CC.
+                    if T1_self_edge:
+                        nodes_in[c] = new_nodes
+                    
+                    # Change Cache with new value
+                    invalidate({c}, intra_best)
+                    edge, delta2, FR2, most_follower = find_intra_best(G_prime, nodes_in[c], coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT, s_cand)
+                    if edge:
+                        intra_best[c] = (edge, delta2, FR2, most_follower)
+
             else:
-                G_prime.add_edge(u, v, weight=best_delta)
+                # inter : Union CC
+                c1, c2 = comp_of[u], comp_of[v]
+                union_nodes = nodes_in[c1] | nodes_in[c2]
 
-            # add budget
-            spent += best_delta
-            # add answer
+                # calculate locally
+                s_core_num = functions.calculate_s_core(G_prime, union_nodes, s, coreness)
 
-            A.append(((u, v), best_delta, most_FR, most_follower))
+                new_nodes = {x for x in union_nodes if not G_prime.nodes[x]['label']}
+
+                # Delete old Cache
+                invalidate({c1,c2}, intra_best)
+                nodes_in.pop(c1); nodes_in.pop(c2)
+
+                # # Check whteher non-s-core is left in CC
+                if new_nodes:
+                    new_c = max(nodes_in)+1  # New id
+                    nodes_in[new_c] = new_nodes
+                    for x in new_nodes:
+                        comp_of[x] = new_c
+
+                    # New Cache
+                    edge, delta2, FR2, most_follower = find_intra_best(G_prime, new_nodes, coreness, s, t, b-spent, upperbound, T1_self_edge, T2_upperbound, UT, FT, s_cand)
+                    if edge:
+                        intra_best[new_c] = (edge, delta2, FR2, most_follower)
+        else:   # Not using reuse tactic. Calculate globally.
             # calculate s-core again
             coreness = {}
             s_core_num = functions.calculate_s_core(G_prime, G_prime.nodes, s, coreness)
-            
-            # debugging 4
-            # print(s_core_num)
-        else:
-            # print("no more")
-            break
-    # print(s_core_num)
     return A, FT, UT, G_prime
 
 
-def self_edge_pruning(G):
-    non_s_core = []
+def build_initial_caches(G, s, t, b, spent, coreness, upperbound, T1_self_edge, T2_upperbound, UT, FT):
+    '''
+    If self_edge tactic is used, only non-s-cores are saved in Connected Component.
+    If not, s-core has to be saved in Connected Component.
+    '''
+    comp_of, nodes_in = {}, {}
+    intra_best = {}
     s_cand = None
-    for n, d in G.nodes(data=True):
-        if not d['label']:
-            non_s_core.append(n)
+
+    if T1_self_edge:    # Only non-s-core
+        # Decompose CC
+        for cid, nodes in enumerate(nx.connected_components(G)):
+            non_s_core = set()
+            for v in nodes:
+                if not G.nodes[v]['label']:
+                    non_s_core.add(v)
+                else:
+                    if s_cand is None:
+                        s_cand = v
+
+            # If there are only s_core in CC, do not store it.
+            if not non_s_core:
+                continue
+
+            nodes_in[cid] = non_s_core
+            for v in non_s_core:
+                comp_of[v] = cid
+
+        # We need at least one s_core           
+        if s_cand is None:
+            print("No node in s-core. Change s value")
+            sys.exit(1)
+
+    else:   # Store every nodes
+        # Decompose CC
+        for cid, nodes in enumerate(nx.connected_components(G)):
+            nodes_in[cid] = nodes
+            for v in nodes:
+                comp_of[v] = cid
+
+    # intra
+    for cid, nodes in nodes_in.items():
+        edge, delta, FR, most_follower = find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT, s_cand)
+        if edge:
+            intra_best[cid] = (edge, delta, FR, most_follower)
+
+    return comp_of, nodes_in, intra_best, s_cand
+
+
+def find_intra_best(G, nodes, coreness, s, t, b, spent, upperbound, T1_self_edge, T2_upperbound, UT, FT, s_cand):
+
+    if T1_self_edge:
+        candidate_nodes = exp_func.make_candidate_nodes(G, nodes, s, b, coreness, upperbound, UT, T2_upperbound)
+
+        if T2_upperbound:
+            # tactics TT
+            best = exp_func.iteration_nodes_upperbound(G, candidate_nodes, s, b, t, spent, coreness, upperbound, s_cand, FT, T1_self_edge, False)
         else:
-            if s_cand is None:
-                s_cand = n
+            # tactics TF
+            best = exp_func.iteration_nodes_no_upperbound(G, candidate_nodes, s, b, t, spent, coreness, s_cand, FT, False)
     
-    if s_cand is None:
-        print("No node in s-core. Change s value")
-        sys.exit(1)
+    else:
+        if T2_upperbound:
+            # tactics FT
+            candidate_nodes = exp_func.make_candidate_nodes_v2(G, nodes, s, b, coreness, upperbound, UT, T2_upperbound)
+            best = exp_func.iteration_nodes_upperbound(G, candidate_nodes, s, b, t, spent, coreness, upperbound, s_cand, FT, T1_self_edge, False)
+        else:
+            # tactics FF
+            candidate_edges = exp_func.make_candidate_edges(G, nodes, s, b, coreness)
+            best = exp_func.iteration_edges_no_upperbound(G, candidate_edges, s, b, t, spent, coreness, FT, False)
     
-    return non_s_core, s_cand
+    return best   # best_edge is None → No appropriate edge in this CC
+
+
+def invalidate(ccs, intra_best):
+    for c in ccs:
+        intra_best.pop(c, None)

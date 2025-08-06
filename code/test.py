@@ -17,7 +17,7 @@ parser.add_argument('--b', type=int, default=10,
                     help='budget b')
 parser.add_argument('--t', type=str, default='',
                     help='a folder name for bound function') # 우선 bound가 없다고 가정하고 작성하시면 될 것 같습니다.
-parser.add_argument('--algorithm', default='naive',
+parser.add_argument('--algorithm', default='exp',
                     help='specify algorithm name')
 parser.add_argument('--network', default="../dataset/test/new_network.dat",
                     help='a folder name containing network.dat')
@@ -34,7 +34,7 @@ args = parser.parse_args()
 process = psutil.Process(os.getpid())
 memory_before = process.memory_info().rss / (1024 * 1024)  # Convert to MB
 
-G = nx.read_weighted_edgelist(f'{args.network}/network.dat', nodetype=int)
+G = nx.read_weighted_edgelist(f'{args.network}', nodetype=int)
 for u, v, data in G.edges(data=True):
     data["weight"] = int(math.ceil(data["weight"]))
 
@@ -78,18 +78,19 @@ elif args.algorithm == "exp":
     end_time = time.time()
     total_time = end_time - start_time
     # print('time', end_time - start_time)
-    # print('A', A)
+    print('A', A)
     # print('FT', FT)
     # print('UT', UT)
     s_core_num = 0
     for i in G_prime.nodes:
         if G_prime.nodes[i]['label']:
             s_core_num += 1
+    
 
     memory_after = process.memory_info().rss / (1024 * 1024)  # Convert to MB
     memory_usage = memory_after - memory_before  # Calculate memory used
     # print('mem', memory_usage)
-    exp_func.save_result_to_csv(A, s_core_num, total_time, memory_usage, args)
+    # exp_func.save_result_to_csv(A, s_core_num, total_time, memory_usage, args)
 
 elif args.algorithm == "ekc":
     start_time = time.time()

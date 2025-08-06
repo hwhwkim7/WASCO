@@ -1,6 +1,7 @@
 import functions
 import networkx as nx
 import matplotlib.pyplot as plt
+import sys
 from itertools import combinations_with_replacement
 from collections import Counter
 
@@ -14,12 +15,16 @@ def run(G, s, b, t):
 
     # Filter candidate edges
     non_s_core = []
-    s_core = []
+    s_cand = None
     for n, d in G_prime.nodes(data=True):
         if not d['label']:
             non_s_core.append(n)
         else:
-            s_core.append(n)
+            if not s_cand:
+                s_cand = n
+    if s_cand is None:
+        print("No node in s-core. Change s value")
+        sys.exit(1)
 
     # 후보 엣지 생성
     candidate_edges = []
@@ -29,8 +34,7 @@ def run(G, s, b, t):
             candidate_edges.append((non_s_core[i], non_s_core[j]))
     # 2) non-core <-> s-core
     for u in non_s_core:
-        for v in s_core:
-            candidate_edges.append((u, v))
+        candidate_edges.append((u, s_cand))
 
     C = list(combinations_with_replacement(candidate_edges, b))
 
